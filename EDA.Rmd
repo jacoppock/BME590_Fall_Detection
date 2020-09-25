@@ -1,6 +1,6 @@
 ---
 title: "EDA"
-author: "James A. Coppock"
+author: "James A. Coppock, Cyrus Tanade, Nicole Zimmer"
 date: "9/25/2020"
 output: pdf_document
 ---
@@ -9,11 +9,7 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+## BME 590: Fall Detection
 
 ```{r cars}
 setwd("~/Desktop/Duke/Class/Fall 2020/Biomedical DS/BME590_Fall_Detection")
@@ -30,34 +26,49 @@ Falls_df <- read_excel('Fall_Data.xlsx')
 You can also embed plots, for example:
 
 ```{r , echo=FALSE}
-#install.packages("evobiR")
+cat('The Number of Falls in this Set of Data is:',(sum(Falls_df$Target)))
 Fs <- 100
 win <- 2
 stp <- 0.5
 window <-win*Fs
 step <- stp*Fs 
 Targets<-SlidingWindow("max", Falls_df$Target, window, step)
-
 maxAccX<-SlidingWindow("max", abs(Falls_df$accX), window, step)
 maxAccY<-SlidingWindow("max", abs(Falls_df$accY), window, step)
 maxAccZ<-SlidingWindow("max", abs(Falls_df$accZ), window, step)
 Features<-data.frame(cbind(maxAccX,maxAccY,maxAccZ))
-length(Falls_df$accX)
+
 ```
 
 ```{r , echo=FALSE}
 time<-seq(from = 1/Fs, to =(length(Falls_df$accX)/Fs) , by = 1/Fs)
+wintime<-seq(from = 1/100, to =(length(Features$maxAccX)/2) , by = 1/2)
+
+
 p1<-ggplot(data=Falls_df, aes(x = time, y=accX, group=1)) +
   geom_line(linetype = "solid") + labs(title = "X Acceleration") 
 
-wintime<-seq(from = 1/100, to =(length(Features$maxAccX)/2) , by = 1/2)
 p2<-ggplot(data=Features, aes(x = wintime, y=maxAccX, group=1)) +
   geom_line(linetype = "solid") + labs(title = "Max X Acceleration in (2:0.5) Window") 
 
 p1+ p2
+```
 
+```{r}
+yhat<-as.logical(Falls_df$Target)
+fX<-Falls_df$accX[yhat]
+fY<-Falls_df$accY[yhat]
+fZ<-Falls_df$accZ[yhat]
+X<-time[yhat]
+feat<-data.frame(cbind(X,fX,fY,fZ))
+p1<-ggplot(data=Falls_df, aes(x = time, y=accX, group=1)) +
+  geom_line(linetype = "solid") + labs(title = "X Acceleration") + geom_point(data=feat, aes(x = X, y=fX, group=2,color = 'Falls'))
+p2<-ggplot(data=Falls_df, aes(x = time, y=accY, group=1)) +
+  geom_line(linetype = "solid") + labs(title = "Y Acceleration") + geom_point(data=feat, aes(x = X, y=fY, group=2,color = 'Falls'))
+p3<-ggplot(data=Falls_df, aes(x = time, y=accZ, group=1)) +
+  geom_line(linetype = "solid") + labs(title = "Z Acceleration") + geom_point(data=feat, aes(x = X, y=fZ, group=2,color = 'Falls'))
 
-
+p1/p2/p3
 ```
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
