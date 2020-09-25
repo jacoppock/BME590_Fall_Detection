@@ -13,11 +13,22 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r cars}
 setwd("~/Desktop/Duke/Class/Fall 2020/Biomedical DS/BME590_Fall_Detection")
+#install.packages("Rcpproll")
+#install.packages("slider")
+library(RcppRoll)
 library("tidyverse")
+library(slider)
+library(tibble)
+library(purrr)
+library(lubridate, warn.conflicts = FALSE)
+library(dplyr, warn.conflicts = FALSE)
 library(readxl)
 library(evobiR)
 library(patchwork)
 library(gridExtra)
+```
+
+```{r}
 Falls_df1 <- read.csv('Fall_Data1.csv')
 Falls_df2 <- read.csv('Fall_Data2.csv')
 Falls_df  <- rbind(Falls_df1,Falls_df2)
@@ -30,17 +41,27 @@ rm(Falls_df2)
 You can also embed plots, for example:
 
 ```{r , echo=FALSE}
-cat('The Number of Falls in this Set of Data is:',(sum(Falls_df$Target)))
+cat('The Number of Falls in this Set of Data is:',(sum(Falls_df$Target)),'\n')
 Fs <- 100
 win <- 2
 stp <- 0.5
 window <-win*Fs
-step <- stp*Fs 
+step <- stp*Fs
+
+test_fun <- function(x) {
+   max(x)
+}
+#mean, standard deviation, RMS, max and min amplitude, Q1 median and Q3, skewness, kurtosis
+#test<-roll_mean(Falls_df$accX,n =25,by = 12 )
 Targets<-SlidingWindow("max", Falls_df$Target, window, step)
-maxAccX<-SlidingWindow("max", abs(Falls_df$accX), window, step)
+maxAccX<-SlidingWindow(max, abs(Falls_df$accX), window, step)
+maxAccXTest<-SlidingWindow(test_fun, abs(Falls_df$accX), window, step)
 maxAccY<-SlidingWindow("max", abs(Falls_df$accY), window, step)
 maxAccZ<-SlidingWindow("max", abs(Falls_df$accZ), window, step)
-Features<-data.frame(cbind(maxAccX,maxAccY,maxAccZ))
+maxAccX[0:20]
+maxAccXTest[0:20]
+#mean, standard deviation, RMS, max and min amplitude, Q1 median and Q3, skewness, kurtosis
+#Features<-data.frame(cbind(maxAccX,maxAccY,maxAccZ))
 
 ```
 
