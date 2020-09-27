@@ -57,7 +57,16 @@ sum(is.na(Falls_df)) # no missing values to impute!
 
 You can also embed plots, for example:
 ```{r}
-ggplot(Falls_df, aes(x=time, y=accX)) + geom_boxplot()
+p1 = ggplot(Falls_df, aes(x=time, y=accX)) + geom_boxplot()
+p2 = ggplot(Falls_df, aes(x=time, y=angX)) + geom_boxplot()
+p3 = ggplot(Falls_df, aes(x=time, y=maxX)) + geom_boxplot()
+p4 = ggplot(Falls_df, aes(x=time, y=accY)) + geom_boxplot()
+p5 = ggplot(Falls_df, aes(x=time, y=angY)) + geom_boxplot()
+p6 = ggplot(Falls_df, aes(x=time, y=magY)) + geom_boxplot()
+p7 = ggplot(Falls_df, aes(x=time, y=accZ)) + geom_boxplot()
+p8 = ggplot(Falls_df, aes(x=time, y=angZ)) + geom_boxplot()
+p9 = ggplot(Falls_df, aes(x=time, y=magZ)) + geom_boxplot()
+(p1+p2+p3) / (p4+p5+p6) / (p7+p8+p9)
 ```
 
 ```{r , echo=FALSE}
