@@ -9,17 +9,15 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+
 ## BME 590: Fall Detection
 
 ```{r cars}
-#setwd("~/Desktop/Duke/Class/Fall 2020/Biomedical DS/BME590_Fall_Detection")
-#install.packages("Rcpproll")
-#install.packages("slider")
+setwd("~/Desktop/Duke/Class/Fall 2020/Biomedical DS/BME590_Fall_Detection")
 library(RcppRoll)
 library("tidyverse")
 library(slider)
 library(tibble)
-library(purrr)
 library(lubridate, warn.conflicts = FALSE)
 library(dplyr, warn.conflicts = FALSE)
 library(readxl)
@@ -33,16 +31,19 @@ library(seewave)
 ```
 
 ```{r}
+
 Falls_df1 <- read.csv('Fall_Data1.csv')
 Falls_df2 <- read.csv('Fall_Data2.csv')
 Falls_df  <- rbind(Falls_df1,Falls_df2)
 rm(Falls_df1)
 rm(Falls_df2)
+
 #Falls_df[, c(2):c(ncol(Falls_df)-1)] <- scale(Falls_df[, c(2):c(ncol(Falls_df)-1)], center=TRUE, scale=TRUE) # standardizing
 #Falls_df <- scale(Falls_df) #standardize 
 #colMeans(Falls_df)  # faster version of apply(scaled.dat, 2, mean)
 #apply(Falls_df, 2, sd)
-Falls_df
+#Falls_df
+
 ```
 
 See structure of dataset
@@ -230,3 +231,35 @@ p1/p2/p3
 ```
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r}
+fall_ind<-which(Falls_df$Target %in% 1)
+```
+
+```{r}
+falls<-c(2,7,20)
+for (i in falls) {
+  print(i)
+time<-seq(from = 1/Fs, to =2 , by = 1/Fs)
+zeros<-matrix(0, dim(Falls_df)[1], 1)
+zeros[seq(from = fall_ind[i]-100, to =fall_ind[i]+99 , by = 1)] =1
+ind<-as.logical(zeros)
+f_point<-matrix(0, Fs*2, 1)
+f_point[101] = 1
+f_point<-as.logical(f_point)
+acX<-Falls_df$accX[ind]
+acY<-Falls_df$accY[ind]
+acZ<-Falls_df$accZ[ind]
+df<-data.frame(cbind(time,acX,acY,acZ))
+px<-ggplot(data=df, aes(x = time, y=acX, group=1)) +
+geom_line(linetype = "solid") + labs(title = "X Acceleration")+ geom_point(data=df, aes(x = time[f_point], y=acX[f_point], group=2),color = 'red')
+
+py<-ggplot(data=df, aes(x = time, y=acY, group=1)) +
+geom_line(linetype = "solid") + labs(title = "Y Acceleration")+ geom_point(data=df, aes(x = time[f_point], y=acY[f_point], group=2),color = 'red')
+
+pz<-ggplot(data=df, aes(x = time, y=acZ, group=1)) +
+geom_line(linetype = "solid") + labs(title = "Z Acceleration")+ geom_point(data=df, aes(x = time[f_point], y=acZ[f_point], group=2),color = 'red')
+print(px + py + pz)
+# ggsave(city_plots[[city_]], file=paste0("plot_",".png"), width = 44.45, height = 27.78, units = "cm", dpi=300)
+}
+```
+
