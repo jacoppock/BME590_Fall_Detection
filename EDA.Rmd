@@ -35,6 +35,7 @@ library(corrr)
 Falls_df1 <- read.csv('Fall_Data1.csv')
 Falls_df2 <- read.csv('Fall_Data2.csv')
 Falls_df  <- rbind(Falls_df1,Falls_df2)
+Falls_df_rms <- rbind(Falls_df1,Falls_df2)
 rm(Falls_df1)
 rm(Falls_df2)
 ```
@@ -47,6 +48,21 @@ str(Falls_df)
 sum(is.na(Falls_df)) # no missing values to impute!
 ```
 
+Make a new dataset of RMS values
+
+```{r}
+
+Falls_df_rms <- mutate(Falls_df_rms, acc = (Falls_df_rms$accX^2 + Falls_df_rms$accY^2 + Falls_df_rms$accZ^2)^0.5)
+Falls_df_rms <- mutate(Falls_df_rms, ang = (Falls_df_rms$angX^2 + Falls_df_rms$angY^2 + Falls_df_rms$angZ^2)^0.5)
+Falls_df_rms <- mutate(Falls_df_rms, mag = (Falls_df_rms$maxX^2 + Falls_df_rms$magY^2 + Falls_df_rms$magZ^2)^0.5)
+
+Falls_df_rms <- select(Falls_df_rms, Time, acc, ang, mag, Target)
+
+str(Falls_df_rms)
+
+```
+
+
 ## Including Plots
 
 You can also embed plots, for example:
@@ -54,7 +70,7 @@ You can also embed plots, for example:
 ```{r , echo=FALSE}
 cat('The Number of Falls in this Set of Data is:',(sum(Falls_df$Target)),'\n')
 Fs <- 100
-win <- 2
+win <- 1
 stp <- 0.5
 window <-win*Fs
 step <- stp*Fs
@@ -103,9 +119,6 @@ variable_generate <- function(a){
   q3_var <- SlidingWindow("q3", abs(a), window, step)
   rename(arg_name,q3_var, "q3")
   
-  rms_var <- SlidingWindow(rms, a, window, step) # should we normalize everything beforehand???
-  rename(arg_name,rms_var, "rms")
-  
   std_var <- SlidingWindow("sd", abs(a), window, step)
   rename(arg_name,std_var, "std")
 
@@ -131,81 +144,119 @@ Features
 #stats_AccX
 
 # Feature Extraction
-variable_generate(Falls_df$accX)
-variable_generate(Falls_df$accY)
-variable_generate(Falls_df$accZ)
-variable_generate(Falls_df$angX)
-variable_generate(Falls_df$angY)
-variable_generate(Falls_df$angZ)
-variable_generate(Falls_df$magY)
-variable_generate(Falls_df$magZ)
+#variable_generate(Falls_df$accX)
+#variable_generate(Falls_df$accY)
+#variable_generate(Falls_df$accZ)
+#variable_generate(Falls_df$angX)
+#variable_generate(Falls_df$angY)
+#variable_generate(Falls_df$angZ)
+#variable_generate(Falls_df$magY)
+#variable_generate(Falls_df$magZ)
+
+Targets<-SlidingWindow("max", Falls_df_rms$Target, window, step)
+variable_generate(Falls_df_rms$acc)
+variable_generate(Falls_df_rms$ang)
+variable_generate(Falls_df_rms$mag)
+
 ```
 
 
 ```{r}
 
 # Combine all features into a dataframe
-AllFeatures <- data.frame(Targets, `mean_Falls_df$accX`, `max_Falls_df$accX`, `min_Falls_df$accX`,`median_Falls_df$accX`,`q1_Falls_df$accX`,
-                                  `q3_Falls_df$accX`,`rms_Falls_df$accX`,`std_Falls_df$accX`,`skew_Falls_df$accX`,`kurtosis_Falls_df$accX`,
-                                   `mean_Falls_df$accY`, `max_Falls_df$accY`, `min_Falls_df$accY`,`median_Falls_df$accY`,`q1_Falls_df$accY`,
-                                  `q3_Falls_df$accY`,`rms_Falls_df$accY`,`std_Falls_df$accY`,`skew_Falls_df$accY`,`kurtosis_Falls_df$accY`,
-                                   `mean_Falls_df$accZ`, `max_Falls_df$accZ`, `min_Falls_df$accZ`,`median_Falls_df$accZ`,`q1_Falls_df$accZ`,
-                                  `q3_Falls_df$accZ`,`rms_Falls_df$accZ`,`std_Falls_df$accZ`,`skew_Falls_df$accZ`,`kurtosis_Falls_df$accZ`, 
-                                   `mean_Falls_df$angX`,`max_Falls_df$angX`,`min_Falls_df$angX`,`median_Falls_df$angX`,`q1_Falls_df$angX`,
-                                  `q3_Falls_df$angX`,`rms_Falls_df$angX`, `std_Falls_df$angX`,`skew_Falls_df$angX`,`kurtosis_Falls_df$angX`,
-                                   `mean_Falls_df$angY`,`max_Falls_df$angY`,`min_Falls_df$angY`,`median_Falls_df$angY`,`q1_Falls_df$angY`,
-                                  `q3_Falls_df$angY`,`rms_Falls_df$angY`,`std_Falls_df$angY`,`skew_Falls_df$angY`,`kurtosis_Falls_df$angY`,
-                                   `mean_Falls_df$angZ`,`max_Falls_df$angZ`,`min_Falls_df$angZ`,`median_Falls_df$angZ`,`q1_Falls_df$angZ`,
-                                  `q3_Falls_df$angZ`,`rms_Falls_df$angZ`,`std_Falls_df$angZ`,`skew_Falls_df$angZ`,`kurtosis_Falls_df$angZ`,
-                                   `mean_Falls_df$magY`,`max_Falls_df$magY`,`min_Falls_df$magY`,`median_Falls_df$magY`,`q1_Falls_df$magY`,
-                                  `q3_Falls_df$magY`,`rms_Falls_df$magY`,`std_Falls_df$magY`,`skew_Falls_df$magY`,`kurtosis_Falls_df$magY`,
-                                   `mean_Falls_df$magZ`,`max_Falls_df$magZ`,`min_Falls_df$magZ`,`median_Falls_df$magZ`,`q1_Falls_df$magZ`,
-                                  `q3_Falls_df$magZ`,`rms_Falls_df$magZ`,`std_Falls_df$magZ`,`skew_Falls_df$magZ`,`kurtosis_Falls_df$magZ`)
+#AllFeatures <- data.frame(Targets, `mean_Falls_df$accX`, `max_Falls_df$accX`, `min_Falls_df$accX`,`median_Falls_df$accX`,`q1_Falls_df$accX`,
+#                                  `q3_Falls_df$accX`,`rms_Falls_df$accX`,`std_Falls_df$accX`,`skew_Falls_df$accX`,`kurtosis_Falls_df$accX`,
+#                                   `mean_Falls_df$accY`, `max_Falls_df$accY`, `min_Falls_df$accY`,`median_Falls_df$accY`,`q1_Falls_df$accY`,
+#                                  `q3_Falls_df$accY`,`rms_Falls_df$accY`,`std_Falls_df$accY`,`skew_Falls_df$accY`,`kurtosis_Falls_df$accY`,
+#                                   `mean_Falls_df$accZ`, `max_Falls_df$accZ`, `min_Falls_df$accZ`,`median_Falls_df$accZ`,`q1_Falls_df$accZ`,
+#                                  `q3_Falls_df$accZ`,`rms_Falls_df$accZ`,`std_Falls_df$accZ`,`skew_Falls_df$accZ`,`kurtosis_Falls_df$accZ`, 
+#                                   `mean_Falls_df$angX`,`max_Falls_df$angX`,`min_Falls_df$angX`,`median_Falls_df$angX`,`q1_Falls_df$angX`,
+#                                  `q3_Falls_df$angX`,`rms_Falls_df$angX`, `std_Falls_df$angX`,`skew_Falls_df$angX`,`kurtosis_Falls_df$angX`,
+#                                   `mean_Falls_df$angY`,`max_Falls_df$angY`,`min_Falls_df$angY`,`median_Falls_df$angY`,`q1_Falls_df$angY`,
+#                                  `q3_Falls_df$angY`,`rms_Falls_df$angY`,`std_Falls_df$angY`,`skew_Falls_df$angY`,`kurtosis_Falls_df$angY`,
+#                                   `mean_Falls_df$angZ`,`max_Falls_df$angZ`,`min_Falls_df$angZ`,`median_Falls_df$angZ`,`q1_Falls_df$angZ`,
+#                                  `q3_Falls_df$angZ`,`rms_Falls_df$angZ`,`std_Falls_df$angZ`,`skew_Falls_df$angZ`,`kurtosis_Falls_df$angZ`,
+#                                   `mean_Falls_df$magY`,`max_Falls_df$magY`,`min_Falls_df$magY`,`median_Falls_df$magY`,`q1_Falls_df$magY`,
+#                                  `q3_Falls_df$magY`,`rms_Falls_df$magY`,`std_Falls_df$magY`,`skew_Falls_df$magY`,`kurtosis_Falls_df$magY`,
+#                                   `mean_Falls_df$magZ`,`max_Falls_df$magZ`,`min_Falls_df$magZ`,`median_Falls_df$magZ`,`q1_Falls_df$magZ`,
+#                                  `q3_Falls_df$magZ`,`rms_Falls_df$magZ`,`std_Falls_df$magZ`,`skew_Falls_df$magZ`,`kurtosis_Falls_df$magZ`)
 
 # lol please tell me there's a better way to do this ^
 
-str(AllFeatures)
+#str(AllFeatures)
+AllFeaturesRMS <- data.frame(Targets,`mean_Falls_df_rms$acc`,`max_Falls_df_rms$acc`,`min_Falls_df_rms$acc`,`median_Falls_df_rms$acc`,`q1_Falls_df_rms$acc`,
+                                    `q3_Falls_df_rms$acc`,`std_Falls_df_rms$acc`,`skew_Falls_df_rms$acc`,`kurtosis_Falls_df_rms$acc`,
+                                     `mean_Falls_df_rms$ang`,`max_Falls_df_rms$ang`,`min_Falls_df_rms$ang`,`median_Falls_df_rms$ang`,`q1_Falls_df_rms$ang`,
+                                    `q3_Falls_df_rms$ang`,`std_Falls_df_rms$ang`,`skew_Falls_df_rms$ang`,`kurtosis_Falls_df_rms$ang`,
+                                     `mean_Falls_df_rms$mag`,`max_Falls_df_rms$mag`,`min_Falls_df_rms$mag`,`median_Falls_df_rms$mag`,`q1_Falls_df_rms$mag`,
+                                    `q3_Falls_df_rms$mag`,`std_Falls_df_rms$mag`,`skew_Falls_df_rms$mag`,`kurtosis_Falls_df_rms$mag`)
 
 # Check that there are still 28 falls
-cat('The Number of Falls in this Set of Data is:',(sum(AllFeatures$Targets)),'\n')
+names(AllFeaturesRMS)[2] <- "Mean(acc)"
+names(AllFeaturesRMS)[3] <- "Max(acc)"
+names(AllFeaturesRMS)[4] <- "Min(acc)"
+names(AllFeaturesRMS)[5] <- "Median(acc)"
+names(AllFeaturesRMS)[6] <- "Q1(acc)"
+names(AllFeaturesRMS)[7] <- "Q3(acc)"
+names(AllFeaturesRMS)[8] <- "SD(acc)"
+names(AllFeaturesRMS)[9] <- "Skew(acc)"
+names(AllFeaturesRMS)[10] <- "Kurtosis(acc)"
+
+names(AllFeaturesRMS)[11] <- "Mean(ang)"
+names(AllFeaturesRMS)[12] <- "Max(ang)"
+names(AllFeaturesRMS)[13] <- "Min(ang)"
+names(AllFeaturesRMS)[14] <- "Median(ang)"
+names(AllFeaturesRMS)[15] <- "Q1(ang)"
+names(AllFeaturesRMS)[16] <- "Q3(ang)"
+names(AllFeaturesRMS)[17] <- "SD(ang)"
+names(AllFeaturesRMS)[18] <- "Skew(ang)"
+names(AllFeaturesRMS)[19] <- "Kurtosis(ang)"
+
+names(AllFeaturesRMS)[20] <- "Mean(mag)"
+names(AllFeaturesRMS)[21] <- "Max(mag)"
+names(AllFeaturesRMS)[22] <- "Min(mag)"
+names(AllFeaturesRMS)[23] <- "Median(mag)"
+names(AllFeaturesRMS)[24] <- "Q1(mag)"
+names(AllFeaturesRMS)[25] <- "Q3(mag)"
+names(AllFeaturesRMS)[26] <- "SD(mag)"
+names(AllFeaturesRMS)[27] <- "Skew(mag)"
+names(AllFeaturesRMS)[28] <- "Kurtosis(mag)"
+
+colnames(AllFeaturesRMS)
+cat('The Number of Falls in this Set of Data is:',(sum(AllFeaturesRMS$Targets)),'\n')
 ```
 
 ```{r}
 # Correlation plot
-colnames(AllFeatures) <- paste0("f", 1:ncol(AllFeatures))
+#colnames(AllFeaturesRMS) <- paste0("f", 1:ncol(AllFeaturesRMS))
 
 col <- colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA"))
 # use corrplot library
-cor_df <- cor(AllFeatures)
+cor_df <- cor(AllFeaturesRMS)
 corrplot(cor_df, method = "color", type = "lower", col=col(200),
-         diag=FALSE, order="hclust", tl.cex = 0.1)
+         diag=FALSE, order="hclust", tl.cex = 0.5)
+
 ```
 
 ```{r}
-x <- AllFeatures %>% 
+x <- AllFeaturesRMS %>% 
   correlate() %>% 
-  focus(f1)
+  focus(Targets)
+
+x <- mutate(x, Legend = ifelse(x$Targets>0, "Positive Correlation", "Negative Correlation"))
+
 x
-#> # A tibble: 10 x 2
-#>    rowname        mpg
-#>      <chr>      <dbl>
-#> 1      cyl -0.8521620
-#> 2     disp -0.8475514
-#> 3       hp -0.7761684
-#> 4     drat  0.6811719
-#> 5       wt -0.8676594
-#> 6     qsec  0.4186840
-#> 7       vs  0.6640389
-#> 8       am  0.5998324
-#> 9     gear  0.4802848
-#> 10    carb -0.5509251
+
+colors <- c("Negative Correlation" = "#BB4444", "Positive Correlation" = "#4477AA")
 
 x %>% 
-  mutate(rowname = factor(rowname, levels = rowname[order(f1)])) %>%  # Order by correlation strength
-  ggplot(aes(x = rowname, y = f1)) +
+  mutate(rowname = factor(rowname, levels = rowname[order(Targets)])) %>%  # Order by correlation strength
+  ggplot(aes(x = rowname, y = Targets, fill = Legend)) +
     geom_bar(stat = "identity") +
-    ylab("Correlation with Falls") +
-    xlab("Variable")
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+    ggtitle("Correlation of Falls (Label) with Features") +   scale_fill_manual(values=c("#BB4444", "#4477AA")) +
+    labs(x = "Feature", y = "Pearson's Correlation") + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+    panel.background = element_blank(), axis.line = element_line(colour = "black")) + ggsave("correlation.png", height = 3 , width = 3 * 3.5)
 ```
 
 
