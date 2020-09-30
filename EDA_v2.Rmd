@@ -32,11 +32,11 @@ library(seewave)
 
 ```{r}
 
-Falls_df1 <- read.csv('Fall_Data1.csv')
-Falls_df2 <- read.csv('Fall_Data2.csv')
-Falls_df  <- rbind(Falls_df1,Falls_df2)
-rm(Falls_df1)
-rm(Falls_df2)
+Falls_df <- read.csv('Fall_Data.csv')
+# Falls_df2 <- read.csv('Fall_Data2.csv')
+# Falls_df  <- rbind(Falls_df1,Falls_df2)
+# rm(Falls_df1)
+# rm(Falls_df2)
 
 #Falls_df[, c(2):c(ncol(Falls_df)-1)] <- scale(Falls_df[, c(2):c(ncol(Falls_df)-1)], center=TRUE, scale=TRUE) # standardizing
 #Falls_df <- scale(Falls_df) #standardize 
@@ -233,17 +233,19 @@ p1/p2/p3
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
 ```{r}
 fall_ind<-which(Falls_df$Target %in% 1)
+
 ```
 
 ```{r}
-falls<-c(2,7,20)
+winSize<-30
+falls<-c(2,7,20,22)
 for (i in falls) {
   print(i)
-time<-seq(from = 1/Fs, to =2 , by = 1/Fs)
+time<-seq(from = 1/Fs, to =winSize , by = 1/Fs)
 zeros<-matrix(0, dim(Falls_df)[1], 1)
-zeros[seq(from = fall_ind[i]-100, to =fall_ind[i]+99 , by = 1)] =1
+zeros[seq(from = fall_ind[i]-round(Fs*winSize)/2, to =fall_ind[i]+((round(Fs*winSize)/2)-1) , by = 1)] =1
 ind<-as.logical(zeros)
-f_point<-matrix(0, Fs*2, 1)
+f_point<-matrix(0, Fs*winSize, 1)
 f_point[101] = 1
 f_point<-as.logical(f_point)
 acX<-Falls_df$accX[ind]
@@ -251,13 +253,13 @@ acY<-Falls_df$accY[ind]
 acZ<-Falls_df$accZ[ind]
 df<-data.frame(cbind(time,acX,acY,acZ))
 px<-ggplot(data=df, aes(x = time, y=acX, group=1)) +
-geom_line(linetype = "solid") + labs(title = "X Acceleration")+ geom_point(data=df, aes(x = time[f_point], y=acX[f_point], group=2),color = 'red')
+geom_line(linetype = "solid") + labs(title = "X Acceleration")+ geom_point(data=df, aes(x = time[f_point], y=acX[f_point], group=2),color = 'red')+ annotate("rect", xmin = time[f_point], xmax = time[f_point]+1, ymin = min(acX)-0.5, ymax = max(acX)+0.5 ,alpha = .2, fill = 'red')
 
 py<-ggplot(data=df, aes(x = time, y=acY, group=1)) +
-geom_line(linetype = "solid") + labs(title = "Y Acceleration")+ geom_point(data=df, aes(x = time[f_point], y=acY[f_point], group=2),color = 'red')
+geom_line(linetype = "solid") + labs(title = "Y Acceleration")+ geom_point(data=df, aes(x = time[f_point], y=acY[f_point], group=2),color = 'red')+ annotate("rect", xmin = time[f_point], xmax = time[f_point]+1, ymin = min(acY)-0.5, ymax = max(acY)+0.5 ,alpha = .2, fill = 'red')
 
 pz<-ggplot(data=df, aes(x = time, y=acZ, group=1)) +
-geom_line(linetype = "solid") + labs(title = "Z Acceleration")+ geom_point(data=df, aes(x = time[f_point], y=acZ[f_point], group=2),color = 'red')
+geom_line(linetype = "solid") + labs(title = "Z Acceleration")+ geom_point(data=df, aes(x = time[f_point], y=acZ[f_point], group=2),color = 'red') + annotate("rect", xmin = time[f_point], xmax = time[f_point]+1, ymin = min(acZ)-0.5, ymax = max(acZ)+0.5 ,alpha = .2, fill = 'red')
 print(px + py + pz)
 # ggsave(city_plots[[city_]], file=paste0("plot_",".png"), width = 44.45, height = 27.78, units = "cm", dpi=300)
 }
