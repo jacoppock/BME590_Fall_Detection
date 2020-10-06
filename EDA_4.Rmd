@@ -1,0 +1,251 @@
+---
+title: "EDA"
+author: "James A. Coppock, Cyrus Tanade, Nicole Zimmer"
+date: "9/25/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## BME 590: Fall Detection
+
+```{r cars}
+#setwd("~/Desktop/Duke/Class/Fall 2020/Biomedical DS/BME590_Fall_Detection")
+#install.packages("Rcpproll")
+#install.packages("slider")
+library(RcppRoll)
+library("tidyverse")
+library(slider)
+library(tibble)
+library(purrr)
+library(lubridate, warn.conflicts = FALSE)
+library(dplyr, warn.conflicts = FALSE)
+library(readxl)
+library(evobiR)
+library(patchwork)
+library(gridExtra)
+library(moments)
+library(corrplot)
+library(corrr)
+```
+
+```{r}
+Falls_df1 <- read.csv('Fall_Data1.csv')
+Falls_df2 <- read.csv('Fall_Data2.csv')
+Falls_df  <- rbind(Falls_df1,Falls_df2)
+rm(Falls_df1)
+rm(Falls_df2)
+```
+
+See structure of dataset
+
+```{r}
+summary(Falls_df)
+str(Falls_df)
+sum(is.na(Falls_df)) # no missing values to impute!
+```
+```{r, fig.width=10, fig.height=8}
+p1 = ggplot(Falls_df, aes(x=accX))+geom_histogram(aes(y=..density..), binwidth = 0.7, color="black", fill="white")+geom_density(color="red", size=1)+labs(x="X acceleration")
+p2 = ggplot(Falls_df, aes(x=accY))+geom_histogram(aes(y=..density..), binwidth = 0.7, color="black", fill="white")+geom_density(color="red", size=1)+labs(x="Y acceleration")
+p3 = ggplot(Falls_df, aes(x=accZ))+geom_histogram(aes(y=..density..), binwidth = 0.7, color="black", fill="white")+geom_density(color="red", size=1)+labs(x="Z acceleration")
+p4 = ggplot(Falls_df, aes(x=angX))+geom_histogram(aes(y=..density..), binwidth = 0.5, color="black", fill="white")+geom_density(color="red", size=1)+labs(x="X turn rate")
+p5 = ggplot(Falls_df, aes(x=angY))+geom_histogram(aes(y=..density..), binwidth = 0.5, color="black", fill="white")+geom_density(color="red", size=1)+labs(x="Y turn rate")
+p6 = ggplot(Falls_df, aes(x=angZ))+geom_histogram(aes(y=..density..), binwidth = 0.5, color="black", fill="white")+geom_density(color="red", size=1)+labs(x="Z turn rate")
+p7 = ggplot(Falls_df, aes(x=maxX))+geom_histogram(aes(y=..density..), binwidth = 0.1, color="black", fill="white")+geom_density(color="red", size=1)+labs(x="X magnetic field")
+p8 = ggplot(Falls_df, aes(x=magY))+geom_histogram(aes(y=..density..), binwidth = 0.1, color="black", fill="white")+geom_density(color="red", size=1)+labs(x="Y magnetic field")
+p9 = ggplot(Falls_df, aes(x=magZ))+geom_histogram(aes(y=..density..), binwidth = 0.1, color="black", fill="white")+geom_density(color="red", size=1)+labs(x="Z magnetic field")
+(p1|p2|p3)/(p4|p5|p6)/(p7|p8|p9)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r , echo=FALSE}
+cat('The Number of Falls in this Set of Data is:',(sum(Falls_df$Target)),'\n')
+Fs <- 100
+win <- 2
+stp <- 0.5
+window <-win*Fs
+step <- stp*Fs
+```
+
+```{r}
+test_fun <- function(x) {
+   max(x)
+}
+
+rms <- function(x){
+  sqrt(sum(x^2)/length(x))
+}
+
+q1 <- function(x){
+  quantile(x, 0.25)
+}
+
+q3 <- function(x){
+  quantile(x, 0.75)
+}
+
+rename <- function(a,b,c){
+  var_name <- paste(c, a, sep="_") # Construct the name
+  assign(var_name, b, env=.GlobalEnv) # Assign values to variable
+}
+
+variable_generate <- function(a){
+  arg_name <- deparse(substitute(a))
+  
+  mean_var <- SlidingWindow("mean", abs(a), window, step)
+  rename(arg_name,mean_var, "mean")
+  
+  max_var <- SlidingWindow("max", abs(a), window, step)
+  rename(arg_name,max_var, "max")
+  
+  min_var <- SlidingWindow("min", abs(a), window, step)
+  rename(arg_name,min_var, "min")
+  
+  median_var <- SlidingWindow("median", abs(a), window, step)
+  rename(arg_name,median_var, "median")
+  
+  q1_var <- SlidingWindow("q1", abs(a), window, step)
+  rename(arg_name,q1_var, "q1")
+  
+  q3_var <- SlidingWindow("q3", abs(a), window, step)
+  rename(arg_name,q3_var, "q3")
+  
+  rms_var <- SlidingWindow(rms, a, window, step) # should we normalize everything beforehand???
+  rename(arg_name,rms_var, "rms")
+  
+  std_var <- SlidingWindow("sd", abs(a), window, step)
+  rename(arg_name,std_var, "std")
+
+  skew_var <- SlidingWindow("skewness", abs(a), window, step)
+  rename(arg_name,skew_var, "skew")
+  
+  kurtosis_var <- SlidingWindow("kurtosis", abs(a), window, step)
+  rename(arg_name,kurtosis_var, "kurtosis")
+}
+
+#mean, standard deviation, RMS, max and min amplitude, Q1 median and Q3, skewness, kurtosis
+#test<-roll_mean(Falls_df$accX,n =25,by = 12 )
+Targets<-SlidingWindow("max", Falls_df$Target, window, step)
+maxAccX<-SlidingWindow(max, abs(Falls_df$accX), window, step)
+maxAccXTest<-SlidingWindow(test_fun, abs(Falls_df$accX), window, step)
+maxAccY<-SlidingWindow("max", abs(Falls_df$accY), window, step)
+maxAccZ<-SlidingWindow("max", abs(Falls_df$accZ), window, step)
+#maxAccX[0:20]
+#maxAccXTest[0:20]
+#mean, standard deviation, RMS, max and min amplitude, Q1 median and Q3, skewness, kurtosis
+Features<-data.frame(cbind(maxAccX,maxAccY,maxAccZ, Targets))
+Features
+#stats_AccX
+
+# Feature Extraction
+variable_generate(Falls_df$accX)
+variable_generate(Falls_df$accY)
+variable_generate(Falls_df$accZ)
+variable_generate(Falls_df$angX)
+variable_generate(Falls_df$angY)
+variable_generate(Falls_df$angZ)
+variable_generate(Falls_df$magY)
+variable_generate(Falls_df$magZ)
+```
+
+
+```{r}
+
+# Combine all features into a dataframe
+AllFeatures <- data.frame(Targets, `mean_Falls_df$accX`, `max_Falls_df$accX`, `min_Falls_df$accX`,`median_Falls_df$accX`,`q1_Falls_df$accX`,
+                                  `q3_Falls_df$accX`,`rms_Falls_df$accX`,`std_Falls_df$accX`,`skew_Falls_df$accX`,`kurtosis_Falls_df$accX`,
+                                   `mean_Falls_df$accY`, `max_Falls_df$accY`, `min_Falls_df$accY`,`median_Falls_df$accY`,`q1_Falls_df$accY`,
+                                  `q3_Falls_df$accY`,`rms_Falls_df$accY`,`std_Falls_df$accY`,`skew_Falls_df$accY`,`kurtosis_Falls_df$accY`,
+                                   `mean_Falls_df$accZ`, `max_Falls_df$accZ`, `min_Falls_df$accZ`,`median_Falls_df$accZ`,`q1_Falls_df$accZ`,
+                                  `q3_Falls_df$accZ`,`rms_Falls_df$accZ`,`std_Falls_df$accZ`,`skew_Falls_df$accZ`,`kurtosis_Falls_df$accZ`, 
+                                   `mean_Falls_df$angX`,`max_Falls_df$angX`,`min_Falls_df$angX`,`median_Falls_df$angX`,`q1_Falls_df$angX`,
+                                  `q3_Falls_df$angX`,`rms_Falls_df$angX`, `std_Falls_df$angX`,`skew_Falls_df$angX`,`kurtosis_Falls_df$angX`,
+                                   `mean_Falls_df$angY`,`max_Falls_df$angY`,`min_Falls_df$angY`,`median_Falls_df$angY`,`q1_Falls_df$angY`,
+                                  `q3_Falls_df$angY`,`rms_Falls_df$angY`,`std_Falls_df$angY`,`skew_Falls_df$angY`,`kurtosis_Falls_df$angY`,
+                                   `mean_Falls_df$angZ`,`max_Falls_df$angZ`,`min_Falls_df$angZ`,`median_Falls_df$angZ`,`q1_Falls_df$angZ`,
+                                  `q3_Falls_df$angZ`,`rms_Falls_df$angZ`,`std_Falls_df$angZ`,`skew_Falls_df$angZ`,`kurtosis_Falls_df$angZ`,
+                                   `mean_Falls_df$magY`,`max_Falls_df$magY`,`min_Falls_df$magY`,`median_Falls_df$magY`,`q1_Falls_df$magY`,
+                                  `q3_Falls_df$magY`,`rms_Falls_df$magY`,`std_Falls_df$magY`,`skew_Falls_df$magY`,`kurtosis_Falls_df$magY`,
+                                   `mean_Falls_df$magZ`,`max_Falls_df$magZ`,`min_Falls_df$magZ`,`median_Falls_df$magZ`,`q1_Falls_df$magZ`,
+                                  `q3_Falls_df$magZ`,`rms_Falls_df$magZ`,`std_Falls_df$magZ`,`skew_Falls_df$magZ`,`kurtosis_Falls_df$magZ`)
+
+# lol please tell me there's a better way to do this ^
+
+str(AllFeatures)
+
+# Check that there are still 28 falls
+cat('The Number of Falls in this Set of Data is:',(sum(AllFeatures$Targets)),'\n')
+```
+
+```{r}
+# Correlation plot
+colnames(AllFeatures) <- paste0("f", 1:ncol(AllFeatures))
+
+col <- colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA"))
+# use corrplot library
+cor_df <- cor(AllFeatures)
+corrplot(cor_df, method = "color", type = "lower", col=col(200),
+         diag=FALSE, order="hclust", tl.cex = 0.1)
+```
+
+```{r}
+x <- AllFeatures %>% 
+  correlate() %>% 
+  focus(f1)
+x
+#> # A tibble: 10 x 2
+#>    rowname        mpg
+#>      <chr>      <dbl>
+#> 1      cyl -0.8521620
+#> 2     disp -0.8475514
+#> 3       hp -0.7761684
+#> 4     drat  0.6811719
+#> 5       wt -0.8676594
+#> 6     qsec  0.4186840
+#> 7       vs  0.6640389
+#> 8       am  0.5998324
+#> 9     gear  0.4802848
+#> 10    carb -0.5509251
+
+x %>% 
+  mutate(rowname = factor(rowname, levels = rowname[order(f1)])) %>%  # Order by correlation strength
+  ggplot(aes(x = rowname, y = f1)) +
+    geom_bar(stat = "identity") +
+    ylab("Correlation with Falls") +
+    xlab("Variable")
+```
+
+
+```{r , echo=FALSE}
+time<-seq(from = 1/Fs, to =(length(Falls_df$accX)/Fs) , by = 1/Fs)
+wintime<-seq(from = 1/100, to =(length(Features$maxAccX)/2) , by = 1/2)
+
+p2<-ggplot(data=Features, aes(x = wintime, y=maxAccX, group=1)) +
+  geom_line(linetype = "solid") + labs(title = "Max X Acceleration in (2:0.5) Window") 
+
+p2
+```
+
+```{r}
+yhat<-as.logical(Falls_df$Target)
+fX<-Falls_df$accX[yhat]
+fY<-Falls_df$accY[yhat]
+fZ<-Falls_df$accZ[yhat]
+X<-time[yhat]
+feat<-data.frame(cbind(X,fX,fY,fZ))
+p1<-ggplot(data=Falls_df, aes(x = time, y=accX, group=1)) +
+  geom_line(linetype = "solid") + labs(title = "X Acceleration") + geom_point(data=feat, aes(x = X, y=fX, group=2,color = 'Falls'))
+p2<-ggplot(data=Falls_df, aes(x = time, y=accY, group=1)) +
+  geom_line(linetype = "solid") + labs(title = "Y Acceleration") + geom_point(data=feat, aes(x = X, y=fY, group=2,color = 'Falls'))
+p3<-ggplot(data=Falls_df, aes(x = time, y=accZ, group=1)) +
+  geom_line(linetype = "solid") + labs(title = "Z Acceleration") + geom_point(data=feat, aes(x = X, y=fZ, group=2,color = 'Falls'))
+
+p1/p2/p3
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
