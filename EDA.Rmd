@@ -16,7 +16,6 @@ knitr::opts_chunk$set(echo = TRUE)
 #install.packages("Rcpproll")
 #install.packages("slider")
 library(RcppRoll)
-library("tidyverse")
 library(slider)
 library(tibble)
 library(purrr)
@@ -29,6 +28,7 @@ library(gridExtra)
 library(moments)
 library(corrplot)
 library(corrr)
+library(signal)
 ```
 
 ```{r}
@@ -40,27 +40,258 @@ rm(Falls_df1)
 rm(Falls_df2)
 ```
 
+
 See structure of dataset
 
 ```{r}
-summary(Falls_df)
 str(Falls_df)
-sum(is.na(Falls_df)) # no missing values to impute!
+str(Falls_df_rms)
+```
+
+```{r}
+
+bf <- signal::butter(4, 1/49, type="low")
+
+Time <- Falls_df$Time
+accX <- signal::filtfilt(bf, Falls_df_rms$accX)
+accY <- signal::filtfilt(bf, Falls_df_rms$accY)
+accZ <- signal::filtfilt(bf, Falls_df_rms$accZ)
+  
+angX <- signal::filtfilt(bf, Falls_df_rms$angX)
+angY <- signal::filtfilt(bf, Falls_df_rms$angY)
+angZ <- signal::filtfilt(bf, Falls_df_rms$angZ)
+  
+maxX <- signal::filtfilt(bf, Falls_df_rms$maxX)
+magY <- signal::filtfilt(bf, Falls_df_rms$magY)
+magZ <- signal::filtfilt(bf, Falls_df_rms$magZ)
+
+Target <- Falls_df$Target
+
+Falls_df <- data.frame(Time, accX, accY, accZ, angX, angY, angZ, maxX, magY, magZ, Target)
+Falls_df_rms <- data.frame(Time, accX, accY, accZ, angX, angY, angZ, maxX, magY, magZ, Target)
+
 ```
 
 Make a new dataset of RMS values
 
 ```{r}
 
-Falls_df_rms <- mutate(Falls_df_rms, acc = (Falls_df_rms$accX^2 + Falls_df_rms$accY^2 + Falls_df_rms$accZ^2)^0.5)
-Falls_df_rms <- mutate(Falls_df_rms, ang = (Falls_df_rms$angX^2 + Falls_df_rms$angY^2 + Falls_df_rms$angZ^2)^0.5)
-Falls_df_rms <- mutate(Falls_df_rms, mag = (Falls_df_rms$maxX^2 + Falls_df_rms$magY^2 + Falls_df_rms$magZ^2)^0.5)
+Falls_df_rms <- dplyr::mutate(Falls_df_rms, acc = (Falls_df_rms$accX^2 + Falls_df_rms$accY^2 + Falls_df_rms$accZ^2)^0.5)
+Falls_df_rms <- dplyr::mutate(Falls_df_rms, ang = (Falls_df_rms$angX^2 + Falls_df_rms$angY^2 + Falls_df_rms$angZ^2)^0.5)
+Falls_df_rms <- dplyr::mutate(Falls_df_rms, mag = (Falls_df_rms$maxX^2 + Falls_df_rms$magY^2 + Falls_df_rms$magZ^2)^0.5)
 
-Falls_df_rms <- select(Falls_df_rms, Time, acc, ang, mag, Target)
+Falls_df_rms <- dplyr::select(Falls_df_rms, Time, acc, ang, mag, Target)
 
 str(Falls_df_rms)
 
 ```
+
+```{r}
+
+Falls_raw_none <- dplyr::filter(Falls_df, Target == 0)
+Falls_raw_target <- dplyr::filter(Falls_df, Target == 1)
+
+Falls_df_none <- dplyr::filter(Falls_df_rms, Target == 0)
+Falls_df_target <- dplyr::filter(Falls_df_rms, Target == 1)
+
+```
+
+
+```{r}
+Falls_df_rms[, "Target"] <- sapply(Falls_df_rms[, "Target"], as.factor)
+Falls_df[, "Target"] <- sapply(Falls_df_rms[, "Target"], as.factor)
+```
+
+
+```{r, fig.width=8, fig.height=8}
+library(ggplot2)
+
+cols <- c("#2E9FDF", "#FF6666")
+
+accX <- ggplot(Falls_df, aes(x=accX, color=Target)) +
+  geom_histogram(aes(y=..density..), bins=50) + xlab("Acceleration (m/s^2)") + 
+  ylab("Density") + scale_color_manual(values=cols) +
+  geom_vline(aes(xintercept = mean(Falls_raw_none$accX)),col='#2E9FDF', linetype="dashed") +
+  geom_vline(aes(xintercept = mean(Falls_raw_target$accX)),col='#FF6666', linetype="dashed") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black")) + ylim(0,1)
+
+accY <- ggplot(Falls_df, aes(x=accY, color=Target)) +
+  geom_histogram(aes(y=..density..), bins=50) + xlab("Acceleration (m/s^2)") + 
+  ylab("Density") + scale_color_manual(values=cols) +
+  geom_vline(aes(xintercept = mean(Falls_raw_none$accY)),col='#2E9FDF', linetype="dashed") +
+  geom_vline(aes(xintercept = mean(Falls_raw_target$accY)),col='#FF6666', linetype="dashed") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black")) + ylim(0,1)
+
+accZ <- ggplot(Falls_df, aes(x=accZ, color=Target)) +
+  geom_histogram(aes(y=..density..), bins=50) + xlab("Acceleration (m/s^2)") + 
+  ylab("Density") + scale_color_manual(values=cols) +
+  geom_vline(aes(xintercept = mean(Falls_raw_none$accZ)),col='#2E9FDF', linetype="dashed") +
+  geom_vline(aes(xintercept = mean(Falls_raw_target$accZ)),col='#FF6666', linetype="dashed") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black")) + ylim(0,1)
+
+angX <- ggplot(Falls_df, aes(x=angX, color=Target)) +
+  geom_histogram(aes(y=..density..), bins=50) + xlab("Angular Rotation (Rad/s)") + 
+  ylab("Density") + scale_color_manual(values=cols) +
+  geom_vline(aes(xintercept = mean(Falls_raw_none$angX)),col='#2E9FDF', linetype="dashed") +
+  geom_vline(aes(xintercept = mean(Falls_raw_target$angX)),col='#FF6666', linetype="dashed") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black")) + ylim(0,2.5)
+
+angY <- ggplot(Falls_df, aes(x=angY, color=Target)) +
+  geom_histogram(aes(y=..density..), bins=50) + xlab("Angular Rotation (Rad/s)") + 
+  ylab("Density") + scale_color_manual(values=cols) +
+  geom_vline(aes(xintercept = mean(Falls_raw_none$angY)),col='#2E9FDF', linetype="dashed") +
+  geom_vline(aes(xintercept = mean(Falls_raw_target$angY)),col='#FF6666', linetype="dashed") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black")) + ylim(0,2.5)
+
+angZ <- ggplot(Falls_df, aes(x=accZ, color=Target)) +
+  geom_histogram(aes(y=..density..), bins=50) + xlab("Angular Rotation (Rad/s)") + 
+  ylab("Density") + scale_color_manual(values=cols) +
+  geom_vline(aes(xintercept = mean(Falls_raw_none$accZ)),col='#2E9FDF', linetype="dashed") +
+  geom_vline(aes(xintercept = mean(Falls_raw_target$accZ)),col='#FF6666', linetype="dashed") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black")) + ylim(0,2.5)
+
+magX <- ggplot(Falls_df, aes(x=maxX, color=Target)) +
+  geom_histogram(aes(y=..density..), bins=50) + xlab("Magnetic Flux Density (uT)") + 
+  ylab("Density") + scale_color_manual(values=cols) +
+  geom_vline(aes(xintercept = mean(Falls_raw_none$maxX)),col='#2E9FDF', linetype="dashed") +
+  geom_vline(aes(xintercept = mean(Falls_raw_target$maxX)),col='#FF6666', linetype="dashed") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black")) + ylim(0,6.5)
+
+magY <- ggplot(Falls_df, aes(x=magY, color=Target)) +
+  geom_histogram(aes(y=..density..), bins=50) + xlab("Magnetic Flux Density (uT)") + 
+  ylab("Density") + scale_color_manual(values=cols) +
+  geom_vline(aes(xintercept = mean(Falls_raw_none$magY)),col='#2E9FDF', linetype="dashed") +
+  geom_vline(aes(xintercept = mean(Falls_raw_target$magY)),col='#FF6666', linetype="dashed") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black")) + ylim(0,6.5)
+
+magZ <- ggplot(Falls_df, aes(x=magZ, color=Target)) +
+  geom_histogram(aes(y=..density..), bins=50) + xlab("Magnetic Flux Density (uT)") + 
+  ylab("Density") + scale_color_manual(values=cols) +
+  geom_vline(aes(xintercept = mean(Falls_raw_none$magZ)),col='#2E9FDF', linetype="dashed") +
+  geom_vline(aes(xintercept = mean(Falls_raw_target$magZ)),col='#FF6666', linetype="dashed") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black")) + ylim(0,6.5)
+
+a <- ggplot(Falls_df_rms, aes(x=acc, color=Target)) +
+  geom_histogram(aes(y=..density..), bins=50) + xlab("Acceleration (m/s^2)") + 
+  ylab("Density") + scale_color_manual(values=cols) +
+  geom_vline(aes(xintercept = mean(Falls_df_none$acc)),col='#2E9FDF', linetype="dashed") +
+  geom_vline(aes(xintercept = mean(Falls_df_target$acc)),col='#FF6666', linetype="dashed") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black")) + ylim(0,1)
+
+b <- ggplot(Falls_df_rms, aes(x=ang, color=Target)) +
+  geom_histogram(aes(y=..density..), bins=50) + xlab("Angular Rotation (Rad/s)") +
+  ylab("Density") + scale_color_manual(values=cols) +
+  geom_vline(aes(xintercept = mean(Falls_df_none$ang)),col='#2E9FDF', linetype="dashed") +
+  geom_vline(aes(xintercept = mean(Falls_df_target$ang)),col='#FF6666', linetype="dashed") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black")) + ylim(0,2.5)
+
+c <- ggplot(Falls_df_rms, aes(x=mag, color=Target)) +
+  geom_histogram(aes(y=..density..), bins=50) + xlab("Magnetic Flux Density (uT)") +
+  ylab("Density") + scale_color_manual(values=cols) +
+  geom_vline(aes(xintercept = mean(Falls_df_none$mag)),col='#2E9FDF', linetype="dashed") +
+  geom_vline(aes(xintercept = mean(Falls_df_target$mag)),col='#FF6666', linetype="dashed") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black")) + ylim(0,6.5)
+
+```
+
+```{r}
+
+accX + accY + accZ + a + plot_layout(ncol = 4, nrow = 1, guides = "collect") + ggsave("histogram_acc.png", height = 2 , width = 10)
+
+```
+
+```{r}
+
+angX + angY + angZ + b + plot_layout(ncol = 4, nrow = 1, guides = "collect") + ggsave("histogram_ang.png", height = 2 , width = 10)
+
+```
+
+
+
+```{r}
+
+magX + magY + magZ + c + plot_layout(ncol = 4, nrow = 1, guides = "collect") + ggsave("histogram_mag.png", height = 2 , width = 10)
+
+```
+
+
+
+```{r}
+sum(Falls_df$Target[Falls_df$Target==1])
+```
+
+
+
+```{r, fig.width=10, fig.height=4}
+
+p <- ggplot(Falls_df_rms, aes(x=Target, y=acc)) + 
+  geom_boxplot(outlier.shape=NA) + ylab("Acceleration (m/s^2)") + coord_flip() +
+  scale_y_continuous(limits = quantile(Falls_df_rms$acc, c(0.2, 0.8))) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+q <- ggplot(Falls_df_rms, aes(x=Target, y=ang)) + 
+  geom_boxplot(outlier.shape=NA) + ylab("Angular Rotation (Rad/s)") + coord_flip() +
+  scale_y_continuous(limits = quantile(Falls_df_rms$ang, c(0.1, 0.9))) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+r <- ggplot(Falls_df_rms, aes(x=Target, y=mag)) + 
+  geom_boxplot(outlier.shape=NA) + ylab("Magnetic Flux Density (uT)") + coord_flip() +
+  scale_y_continuous(limits = quantile(Falls_df_rms$mag, c(0.1, 0.9))) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+p + q + r + plot_annotation(
+  title = 'Boxplots for Sensor Data (without outliers)') + ggsave("boxplot_no_outlier.png", height = 2 , width = 10)
+
+```
+
+
+```{r, fig.width=10, fig.height=4}
+
+p <- ggplot(Falls_df_rms, aes(x=Target, y=acc)) + 
+  geom_boxplot() + ylab("Acceleration (m/s^2)") + coord_flip() +
+  scale_y_continuous(limits = quantile(Falls_df_rms$acc, c(0, 1))) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+q <- ggplot(Falls_df_rms, aes(x=Target, y=ang)) + 
+  geom_boxplot() + ylab("Angular Rotation (Rad/s)") + coord_flip() +
+  scale_y_continuous(limits = quantile(Falls_df_rms$ang, c(0, 1))) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+r <- ggplot(Falls_df_rms, aes(x=Target, y=mag)) + 
+  geom_boxplot() + ylab("Magnetic Flux Density (uT)") + coord_flip() +
+  scale_y_continuous(limits = quantile(Falls_df_rms$mag, c(0, 1))) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+p + q + r + plot_annotation(
+  title = 'Boxplots for Sensor Data') + ggsave("boxplot_outlier.png", height = 2 , width = 10)
+
+```
+
+
+```{r}
+
+cat('The Number of Falls in this Set of Data is:',(sum(Falls_df$Target)),'\n')
+
+```
+
 
 
 ## Including Plots
@@ -70,13 +301,16 @@ You can also embed plots, for example:
 ```{r , echo=FALSE}
 cat('The Number of Falls in this Set of Data is:',(sum(Falls_df$Target)),'\n')
 Fs <- 100
-win <- 1
+win <- 2
 stp <- 0.5
 window <-win*Fs
 step <- stp*Fs
 ```
 
 ```{r}
+
+Falls_df_rms[, "Target"] <- sapply(Falls_df_rms[, "Target"], as.numeric)
+
 test_fun <- function(x) {
    max(x)
 }
@@ -226,6 +460,25 @@ colnames(AllFeaturesRMS)
 cat('The Number of Falls in this Set of Data is:',(sum(AllFeaturesRMS$Targets)),'\n')
 ```
 
+
+```{r}
+
+
+varPlot <- AllFeaturesRMS$`Mean(acc)`
+
+freedman_diaconis <- function(x){
+  2 * IQR(x) / length(x)^(1/3)
+}
+
+p <- ggplot(AllFeaturesRMS, aes(x=varPlot)) + 
+ geom_histogram(aes(y=..density..), fill="white", color="black", binwidth=freedman_diaconis(varPlot))
+p
+
+```
+
+
+
+
 ```{r}
 # Correlation plot
 #colnames(AllFeaturesRMS) <- paste0("f", 1:ncol(AllFeaturesRMS))
@@ -253,7 +506,7 @@ x %>%
   mutate(rowname = factor(rowname, levels = rowname[order(Targets)])) %>%  # Order by correlation strength
   ggplot(aes(x = rowname, y = Targets, fill = Legend)) +
     geom_bar(stat = "identity") +
-    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + ylim(-0.1, 0.1) +
     ggtitle("Correlation of Falls (Label) with Features") +   scale_fill_manual(values=c("#BB4444", "#4477AA")) +
     labs(x = "Feature", y = "Pearson's Correlation") + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
     panel.background = element_blank(), axis.line = element_line(colour = "black")) + ggsave("correlation.png", height = 3 , width = 3 * 3.5)
