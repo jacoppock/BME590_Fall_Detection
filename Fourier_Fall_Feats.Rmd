@@ -41,6 +41,13 @@ rm(Falls_df2)
 
 
 ```{r}
+cat('The Number of Falls in this Set of Data is:',(sum(Falls_df$Target)),'\n')
+Fs <- 100
+win <- 2
+stp <- 0.5
+window <-win*Fs
+step <- stp*Fs
+
 Falls_df <- subset(Data, Target==1)
 noFalls_df<- subset(Data, Target==0)
 
@@ -66,8 +73,55 @@ Train_df <- rbind(noFalls_train,Falls_train)
 Test_df <- rbind(noFalls_test,Falls_test)
 ```
 
+TRAIN BUTTERWORTH
+```{r}
+bf <- signal::butter(4, 1/49, type="low")
+Time <- Train_df$Time
+accX <- signal::filtfilt(bf, Train_df$accX)
+accY <- signal::filtfilt(bf, Train_df$accY)
+accZ <- signal::filtfilt(bf, Train_df$accZ)
+  
+angX <- signal::filtfilt(bf, Train_df$angX)
+angY <- signal::filtfilt(bf, Train_df$angY)
+angZ <- signal::filtfilt(bf, Train_df$angZ)
+  
+maxX <- signal::filtfilt(bf, Train_df$maxX)
+magY <- signal::filtfilt(bf, Train_df$magY)
+magZ <- signal::filtfilt(bf, Train_df$magZ)
+
+Target <- Train_df$Target
+
+Train_df <- data.frame(Time, accX, accY, accZ, angX, angY, angZ, maxX, magY, magZ, Target)
+```
+
+TEST BUTTERWORTH
+```{r}
+Time <- Test_df$Time
+accX <- signal::filtfilt(bf, Test_df$accX)
+accY <- signal::filtfilt(bf, Test_df$accY)
+accZ <- signal::filtfilt(bf, Test_df$accZ)
+  
+angX <- signal::filtfilt(bf, Test_df$angX)
+angY <- signal::filtfilt(bf, Test_df$angY)
+angZ <- signal::filtfilt(bf, Test_df$angZ)
+  
+maxX <- signal::filtfilt(bf, Test_df$maxX)
+magY <- signal::filtfilt(bf, Test_df$magY)
+magZ <- signal::filtfilt(bf, Test_df$magZ)
+
+Target <- Test_df$Target
+
+Test_df <- data.frame(Time, accX, accY, accZ, angX, angY, angZ, maxX, magY, magZ, Target)
+```
+
+
 ```{r}
 
+
+
+apply(df,2,function(x) fft(as.numeric(x)))
+bf <- signal::butter(4, 1/49, type="low")
+accX <- signal::filtfilt(bf, Train_df$accX)
 ```
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
