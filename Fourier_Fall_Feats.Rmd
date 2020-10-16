@@ -1,0 +1,73 @@
+---
+title: "Fourier_Fall_Feats"
+author: "James A. Coppock"
+date: "10/15/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Load in Data
+
+```{r}
+#setwd("~/Desktop/Duke/Class/Fall 2020/Biomedical DS/BME590_Fall_Detection")
+#install.packages("Rcpproll")
+#install.packages("slider")
+library(RcppRoll)
+library(slider)
+library(tibble)
+library(purrr)
+library(lubridate, warn.conflicts = FALSE)
+library(dplyr, warn.conflicts = FALSE)
+library(readxl)
+library(evobiR)
+library(patchwork)
+library(gridExtra)
+library(moments)
+library(corrplot)
+library(corrr)
+library(signal)
+Falls_df1 <- read.csv('Fall_Data1.csv')
+Falls_df2 <- read.csv('Fall_Data2.csv')
+Data  <- rbind(Falls_df1,Falls_df2)
+Data_rms <- rbind(Falls_df1,Falls_df2)
+rm(Falls_df1)
+rm(Falls_df2)
+```
+
+## Including Plots
+
+
+```{r}
+Falls_df <- subset(Data, Target==1)
+noFalls_df<- subset(Data, Target==0)
+
+```
+
+```{r}
+set.seed(97)
+## 80% of the sample size
+smp_size <- floor(0.80 * nrow(Falls_df))
+falls_train_ind <- sample(seq_len(nrow(Falls_df)), size = smp_size)
+
+Falls_train <- Falls_df[falls_train_ind, ]
+Falls_test <- Falls_df[-falls_train_ind, ]
+
+
+smp_size <- floor(0.80 * nrow(noFalls_df))
+nofalls_train_ind <- sample(seq_len(nrow(noFalls_df)), size = smp_size)
+
+noFalls_train <- Falls_df[nofalls_train_ind, ]
+noFalls_test <- Falls_df[-nofalls_train_ind, ]
+
+Train_df <- rbind(noFalls_train,Falls_train)
+Test_df <- rbind(noFalls_test,Falls_test)
+```
+
+```{r}
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
