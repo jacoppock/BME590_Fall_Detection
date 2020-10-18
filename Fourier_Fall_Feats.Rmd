@@ -182,23 +182,44 @@ mean_energy <- function(a){
 }
 
 total_energy <- function(a){
+  # I think you are missing a ^2 here
+  sum(Mod(fft(a)))
+}
+
+power <- function(a){
+  # I think this might be the same thing as mean energy 
+  mean(Mod(fft(a))^2)
+}
+
+sum_coefficients <- function(a){
+  # what are coefficients here? idk how this is different than total energy
   sum(Mod(fft(a)))
 }
 
 entropy_accX <- SlidingWindow("entropy", abs(Train_df$accX), window, step)
 meanEnergy_accX <- SlidingWindow("mean_energy", abs(Train_df$accX), window, step)
 totalEnergy_accX <- SlidingWindow("total_energy", abs(Train_df$accX), window, step)
+power_accX <- SlidingWindow("power", abs(Train_df$accX), window, step)
+sum_coefficients_accX <- SlidingWindow("sum_coefficients", abs(Train_df$accX), window, step)
 
 entropy_angX <- SlidingWindow("entropy", abs(Train_df$angX), window, step)
 meanEnergy_angX <- SlidingWindow("mean_energy", abs(Train_df$angX), window, step)
 totalEnergy_angX <- SlidingWindow("total_energy", abs(Train_df$angX), window, step)
+power_angX <- SlidingWindow("power", abs(Train_df$angX), window, step)
+sum_coefficients_angX <- SlidingWindow("sum_coefficients", abs(Train_df$angX), window, step)
 
 entropy_magX <- SlidingWindow("entropy", abs(Train_df$maxX), window, step)
 meanEnergy_magX <- SlidingWindow("mean_energy", abs(Train_df$maxX), window, step)
 totalEnergy_magX <- SlidingWindow("total_energy", abs(Train_df$maxX), window, step)
+power_magX <- SlidingWindow("power", abs(Train_df$maxX), window, step)
+sum_coefficients_magX <- SlidingWindow("sum_coefficients", abs(Train_df$maxX), window, step)
+
 Targets <- SlidingWindow("max", Train_df$Target, window, step)
 
+
 # Efficient way to perform calculations on all variables and store in new dataframe? Old way I did it in EDA.RMD could work, but it's very inefficient. 
+
+# only doing x?
 
 ```
 
@@ -212,6 +233,9 @@ fft_df <- data.frame(entropy_accX, entropy_angX, entropy_magX,
                      Targets)
 
 pairs(fft_df)
+
+```
+```{r}
 
 ```
 
