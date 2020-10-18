@@ -27,12 +27,16 @@ library(patchwork)
 library(gridExtra)
 library(moments)
 library(corrplot)
+library(psych)
 library(corrr)
 library(signal)
+library(swdft)
+library(seewave)
+library(fftw)
 Falls_df1 <- read.csv('Fall_Data1.csv')
 Falls_df2 <- read.csv('Fall_Data2.csv')
 Data  <- rbind(Falls_df1,Falls_df2)
-Data_rms <- rbind(Falls_df1,Falls_df2)
+Data_EDA <- rbind(Falls_df1,Falls_df2)
 rm(Falls_df1)
 rm(Falls_df2)
 ```
@@ -41,7 +45,7 @@ rm(Falls_df2)
 
 
 ```{r}
-cat('The Number of Falls in this Set of Data is:',(sum(Falls_df$Target)),'\n')
+cat('The Number of Falls in this Set of Data is:',(sum(Data$Target)),'\n')
 Fs <- 100
 win <- 2
 stp <- 0.5
@@ -50,6 +54,33 @@ step <- stp*Fs
 
 Falls_df <- subset(Data, Target==1)
 noFalls_df<- subset(Data, Target==0)
+
+```
+
+Perform Fourier Transform on Initial Dataframe and Plot Results
+
+```{r}
+
+plot.frequency.spectrum <- function(X.k, title,xlimits=c(0,length(X.k))) {
+  plot.data  <- cbind(0:(length(X.k)-1), Mod(X.k))
+  plot.data[2:length(X.k),2] <- 2*plot.data[2:length(X.k),2] 
+  plot(plot.data, t="h", lwd=2, main=title, 
+       xlab="Frequency (Hz)", ylab="Strength",
+       xlim=xlimits, ylim=c(0,max(Mod(plot.data[,2]))))
+}
+
+par(mfrow=c(3,3))
+plot.frequency.spectrum(fft(Data_EDA$accX), "Acceleration X",xlimits=c(0,50))
+plot.frequency.spectrum(fft(Data_EDA$accY), "Acceleration Y",xlimits=c(0,50))
+plot.frequency.spectrum(fft(Data_EDA$accZ), "Acceleration Z",xlimits=c(0,50))
+
+plot.frequency.spectrum(fft(Data_EDA$angX), "Angular Rotation X",xlimits=c(0,50))
+plot.frequency.spectrum(fft(Data_EDA$angY), "Angular Rotation Y",xlimits=c(0,50))
+plot.frequency.spectrum(fft(Data_EDA$angZ), "Angular Rotation Z",xlimits=c(0,50))
+
+plot.frequency.spectrum(fft(Data_EDA$maxX), "Magnetic Flux Density X",xlimits=c(0,50))
+plot.frequency.spectrum(fft(Data_EDA$magY), "Magnetic Flux Density Y",xlimits=c(0,50))
+plot.frequency.spectrum(fft(Data_EDA$magZ), "Magnetic Flux Density Z",xlimits=c(0,50))
 
 ```
 
@@ -92,6 +123,7 @@ magZ <- signal::filtfilt(bf, Train_df$magZ)
 Target <- Train_df$Target
 
 Train_df <- data.frame(Time, accX, accY, accZ, angX, angY, angZ, maxX, magY, magZ, Target)
+str(Train_df)
 ```
 
 TEST BUTTERWORTH
@@ -114,11 +146,77 @@ Target <- Test_df$Target
 Test_df <- data.frame(Time, accX, accY, accZ, angX, angY, angZ, maxX, magY, magZ, Target)
 ```
 
+Define SWDFT
 
 ```{r}
 
+N_train <- length(Train_df)
+window_size <- 32
+
+```
+
+Try using SWDFT
+
+```{r}
+
+# https://cran.r-project.org/web/packages/swdft/vignettes/swdft-intro.html (useful)
+swdft_fft <- function(x, n, taper=1) {
+  N <- length(x)
+  P <- N - n + 1
+  a <- array(data = NA, dim = c(n, P))
+
+  for (p in n:N) {
+    a[, p - n + 1] <- Mod(stats::fft(z = x[(p - n + 1):p] * taper))^2
+  }
+
+  return(a)
+}
+
+entropy <- function(a){
+  sh(Mod(fft(a)), alpha = "shannon")
+}
+
+mean_energy <- function(a){
+  # J/Hz; source: http://aaronscher.com/Course_materials/Communication_Systems/documents/Energy_signals_matlab_tutorial.pdf
+  mean(Mod(fft(a))^2)
+}
+
+total_energy <- function(a){
+  sum(Mod(fft(a)))
+}
+
+entropy_accX <- SlidingWindow("entropy", abs(Train_df$accX), window, step)
+meanEnergy_accX <- SlidingWindow("mean_energy", abs(Train_df$accX), window, step)
+totalEnergy_accX <- SlidingWindow("total_energy", abs(Train_df$accX), window, step)
+
+entropy_angX <- SlidingWindow("entropy", abs(Train_df$angX), window, step)
+meanEnergy_angX <- SlidingWindow("mean_energy", abs(Train_df$angX), window, step)
+totalEnergy_angX <- SlidingWindow("total_energy", abs(Train_df$angX), window, step)
+
+entropy_magX <- SlidingWindow("entropy", abs(Train_df$maxX), window, step)
+meanEnergy_magX <- SlidingWindow("mean_energy", abs(Train_df$maxX), window, step)
+totalEnergy_magX <- SlidingWindow("total_energy", abs(Train_df$maxX), window, step)
+Targets <- SlidingWindow("max", Train_df$Target, window, step)
+
+# Efficient way to perform calculations on all variables and store in new dataframe? Old way I did it in EDA.RMD could work, but it's very inefficient. 
+
+```
+
+Check if new features correlate with target
+
+```{r, fig.width=10, fig.height=10}
+
+fft_df <- data.frame(entropy_accX, entropy_angX, entropy_magX,
+                     meanEnergy_accX, meanEnergy_angX, meanEnergy_magX,
+                     totalEnergy_accX, totalEnergy_angX, totalEnergy_magX,
+                     Targets)
+
+pairs(fft_df)
+
+```
 
 
+```{r}
 apply(df,2,function(x) fft(as.numeric(x)))
 bf <- signal::butter(4, 1/49, type="low")
 accX <- signal::filtfilt(bf, Train_df$accX)
