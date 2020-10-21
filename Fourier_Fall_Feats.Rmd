@@ -200,7 +200,7 @@ sum_coefficients <- function(a){
 }
 
 roll_off <- function(a){
-  amp<-Mod(fft(a))
+  amp<-Mod(fft(a))/length(a)
   freq<-1:length(amp)
   freq<-freq/(length(amp)/100)
   freq<-freq[1:round(length(amp))/2]
@@ -211,7 +211,7 @@ roll_off <- function(a){
   return(rolloff)}
 
 spec_centroid <- function(a){
-  amp<-Mod(fft(a))
+  amp<-Mod(fft(a))/length(a)
   freq<-1:length(amp)
   freq<-freq/(length(amp)/100)
   freq<-freq[1:round(length(amp))/2]
@@ -222,7 +222,7 @@ spec_centroid <- function(a){
   return(cent)}
 
 L2 <- function(a) {
-  amp<-Mod(fft(a))
+  amp<-Mod(fft(a))/length(a)
   freq<-1:length(amp)
   freq<-freq/(length(amp)/100)
   freq<-freq[1:round(length(amp))/2]
@@ -260,55 +260,17 @@ Targets <- SlidingWindow("max", Train_df$Target, window, step)
 
 ```{r}
 # ggplot(df.disc[1:20,], aes(x=freq, y=ammount)) + geom_bar(stat = "identity")
-roll_off <- function(a){
-  amp<-Mod(fft(a))
-  freq<-1:length(amp)
-  freq<-freq/(length(amp)/100)
-  freq<-freq[1:round(length(amp))/2]
-  amp<-amp[1:round(length(amp))/2]
-  cums<-cumsum(amp)
-  roll<-cums<0.85*max(cums)
-  rolloff<-tail(freq[roll],1)
-  return(rolloff)}
-
-spec_centroid <- function(a){
-  amp<-Mod(fft(a))
-  freq<-1:length(amp)
-  freq<-freq/(length(amp)/100)
-  freq<-freq[1:round(length(amp))/2]
-  amp<-amp[1:round(length(amp))/2]
-  cums<-cumsum(amp)
-  roll<-cums<0.5*max(cums)
-  cent<-tail(freq[roll],1)
-  return(cent)}
-
-L2 <- function(a) {
-  amp<-Mod(fft(a))
-  freq<-1:length(amp)
-  freq<-freq/(length(amp)/100)
-  freq<-freq[1:round(length(amp))/2]
-  amp<-amp[1:round(length(amp))/2]
-  l2<-sqrt(sum(amp^2))
-  return(l2)}
 roll_off(accX)
 rolloff_accX <- SlidingWindow("roll_off", abs(Train_df$accX), window, step)
 ```
 ```{r}
-
 spec_centroid(accX)
 specCen_accX <- SlidingWindow("spec_centroid", abs(Train_df$accX), window, step)
 
 ```
 
 ```{r}
-L2 <- function(a) {
-  amp<-Mod(fft(a))
-  freq<-1:length(amp)
-  freq<-freq/(length(amp)/100)
-  freq<-freq[1:round(length(amp))/2]
-  amp<-amp[1:round(length(amp))/2]
-  l2<-sqrt(sum(amp^2))
-  return(l2)}
+
 L2(accX)
 L2_accX <- SlidingWindow("L2", abs(Train_df$accX), window, step)
 
