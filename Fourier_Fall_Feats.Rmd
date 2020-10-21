@@ -199,34 +199,58 @@ sum_coefficients <- function(a){
   sum(Mod(fft(a)))
 }
 
-roll_off <- function(a){
-  amp<-Mod(fft(a))/length(a)
-  freq<-1:length(amp)
-  freq<-freq/(length(amp)/100)
-  freq<-freq[1:round(length(amp))/2]
-  amp<-amp[1:round(length(amp))/2]
+roll_off <- function(a,Fs=100){
+  t <- seq(1/Fs, length(a)*1/Fs, 1/Fs)
+  a<-a-mean(a)
+  n = length(a)
+  dt = 1/Fs
+  fNyq = 1/(2*dt)
+  tmax = max(t)
+  df = 1/tmax
+  f = seq(-fNyq, fNyq-df, by=df)
+  mask=rep(c(1, -1),length.out=n)
+  aa = a * mask
+  amp<-Mod(fft(aa))/n
+  freq<-f[f>0]
+  amp<-amp[f>0]
   cums<-cumsum(amp)
   roll<-cums<0.85*max(cums)
   rolloff<-tail(freq[roll],1)
   return(rolloff)}
 
-spec_centroid <- function(a){
-  amp<-Mod(fft(a))/length(a)
-  freq<-1:length(amp)
-  freq<-freq/(length(amp)/100)
-  freq<-freq[1:round(length(amp))/2]
-  amp<-amp[1:round(length(amp))/2]
+spec_centroid <- function(a,Fs=100){
+  t <- seq(1/Fs, length(a)*1/Fs, 1/Fs)
+  a<-a-mean(a)
+  n = length(a)
+  dt = 1/Fs
+  fNyq = 1/(2*dt)
+  tmax = max(t)
+  df = 1/tmax
+  f = seq(-fNyq, fNyq-df, by=df)
+  mask=rep(c(1, -1),length.out=n)
+  aa = a * mask
+  amp<-Mod(fft(aa))/n
+  freq<-f[f>0]
+  amp<-amp[f>0]
   cums<-cumsum(amp)
-  roll<-cums<0.5*max(cums)
+  roll<-cums<0.85*max(cums)
   cent<-tail(freq[roll],1)
   return(cent)}
 
-L2 <- function(a) {
-  amp<-Mod(fft(a))/length(a)
-  freq<-1:length(amp)
-  freq<-freq/(length(amp)/100)
-  freq<-freq[1:round(length(amp))/2]
-  amp<-amp[1:round(length(amp))/2]
+L2 <- function(a,Fs=100){
+  t <- seq(1/Fs, length(a)*1/Fs, 1/Fs)
+  a<-a-mean(a)
+  n = length(a)
+  dt = 1/Fs
+  fNyq = 1/(2*dt)
+  tmax = max(t)
+  df = 1/tmax
+  f = seq(-fNyq, fNyq-df, by=df)
+  mask=rep(c(1, -1),length.out=n)
+  aa = a * mask
+  amp<-Mod(fft(aa))/n
+  freq<-f[f>0]
+  amp<-amp[f>0]
   l2<-sqrt(sum(amp^2))
   return(l2)}
 
@@ -260,11 +284,12 @@ Targets <- SlidingWindow("max", Train_df$Target, window, step)
 
 ```{r}
 # ggplot(df.disc[1:20,], aes(x=freq, y=ammount)) + geom_bar(stat = "identity")
-roll_off(accX)
+roll_off(accX,Fs) 
 rolloff_accX <- SlidingWindow("roll_off", abs(Train_df$accX), window, step)
+
 ```
 ```{r}
-spec_centroid(accX)
+spec_centroid(accX,Fs)
 specCen_accX <- SlidingWindow("spec_centroid", abs(Train_df$accX), window, step)
 
 ```
@@ -275,6 +300,24 @@ L2(accX)
 L2_accX <- SlidingWindow("L2", abs(Train_df$accX), window, step)
 
 
+```
+
+```{r}
+t <- seq(1/Fs, length(a)*1/Fs, 1/Fs)
+a<-a-mean(a)
+n = length(a)
+dt = 1/Fs
+fNyq = 1/(2*dt)
+tmax = max(t)
+df = 1/tmax
+f = seq(-fNyq, fNyq-df, by=df)
+mask=rep(c(1, -1),length.out=n)
+aa = a * mask
+AA <- fft(aa)/n
+
+# Plot the amplitude spectrum vector against the freq. vector
+
+plot(f,abs(YY), type='h')
 ```
 
 Check if new features correlate with target
