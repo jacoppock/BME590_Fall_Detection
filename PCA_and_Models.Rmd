@@ -1,0 +1,96 @@
+---
+title: "PCA_and_Models"
+author: "Nicole Zimmer"
+date: "10/22/2020"
+output: html_document
+---
+
+```{r message=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(lubridate)
+library(patchwork)
+library(gridExtra)
+library(psych)
+library(corrplot)
+library(ggfortify)
+library(factoextra)
+library(class) #knn
+library(gmodels) # CrossTable()
+library(caret) # creatFolds()
+library(caTools) #sample.split()
+library(ROCR) # prediction(), performance()
+set.seed(123)
+```
+
+PCA to find top contributors
+
+Standardize/scale dataset before PCA
+```{r}
+standardized = scale(df[,1:125], center=TRUE, scale=TRUE)
+standardized = cbind(standardized, df$target)
+standardized_df = as_tibble(standardized)
+standardized_df = standardized_df %>%
+  mutate(target = V126) %>%
+  select(-V126)
+summary(standardized_df)
+head(standarized_df)
+```
+
+Calculate Principal Components and plot screeplot
+```{r}
+prin_comp = princomp(~ ., standardized_df[1:125], cor = TRUE)
+summary(prin_comp)
+screeplot(prin_comp,  npcs = 10, type = c("lines"), main="Scree Plot")
+```
+
+
+Plot to find features corresponding to 95% of variance
+```{r}
+pve = prin_comp$sdev^2/sum(prin_comp$sdev^2)
+cum_pve = cumsum(prin_comp$sdev^2)/sum(prin_comp$sdev^2)
+comps = 1:30
+pve_df = data.frame(comps, pve)
+cum_pve_df = data.frame(comps, cum_pve)
+
+ggplot(cum_pve_df, aes(x=comps, y = cum_pve))+geom_line()+geom_point()+labs(x="Principal Component", y = "Cumulative Proportion of Variance Explained", title = "Cumulative Proportion of Variance Explained Over Number of Principal Components")+geom_hline(yintercept = 0.95, color = "red")+geom_text(aes(0, 0.95, label = 0.95, vjust = 1))
+```
+```{r}
+prin_comp$loadings
+```
+
+BiPlot
+```{r, fig.width=12, fig.height=18}
+autoplot(prin_comp, data = standardized_df, colour = 'diagnosis', loadings = TRUE, loadings.colour = "blue", loadings.label = TRUE)+labs(x="Principal Component 1", y="Principal Component 2", title= "PCA Biplot")
+```
+
+
+
+Model Building
+KNN
+```{r}
+knn_model = knn(x_train, x_test, y_train, k=sqrt(nrow(df_train)), prob=TRUE, use.all = TRUE)
+summary(knn_model)
+```
+
+```{r}
+confusion_matrix = CrossTable(knn_model, y_test, prop.chisq = FALSE, prop.r = FALSE, prop.c = FALSE, prop.t = FALSE)
+```
+
+
+Logisitic Regression
+```{r}
+set.seed(123)
+logistic_model = glm(data=train_df, family=binomial(link='logit'),target~    )
+summary(logistic_model)
+```
+
+LDA
+```{r}
+lda_model=lda(target~    , data=train_df)
+lda_model
+```
+
+
+
+
