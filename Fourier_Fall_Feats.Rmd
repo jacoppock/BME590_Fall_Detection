@@ -63,27 +63,27 @@ noFalls_df<- subset(Data, Target==0)
 Perform Fourier Transform on Initial Dataframe and Plot Results
 
 ```{r}
-
-plot.frequency.spectrum <- function(X.k, title,xlimits=c(0,length(X.k))) {
-  plot.data  <- cbind(0:(length(X.k)-1), Mod(X.k))
-  plot.data[2:length(X.k),2] <- 2*plot.data[2:length(X.k),2] 
-  plot(plot.data, t="h", lwd=2, main=title, 
-       xlab="Frequency (Hz)", ylab="Strength",
-       xlim=xlimits, ylim=c(0,max(Mod(plot.data[,2]))))
-}
-
-par(mfrow=c(3,3))
-plot.frequency.spectrum(fft(Data_EDA$accX), "Acceleration X",xlimits=c(0,50))
-plot.frequency.spectrum(fft(Data_EDA$accY), "Acceleration Y",xlimits=c(0,50))
-plot.frequency.spectrum(fft(Data_EDA$accZ), "Acceleration Z",xlimits=c(0,50))
-
-plot.frequency.spectrum(fft(Data_EDA$angX), "Angular Rotation X",xlimits=c(0,50))
-plot.frequency.spectrum(fft(Data_EDA$angY), "Angular Rotation Y",xlimits=c(0,50))
-plot.frequency.spectrum(fft(Data_EDA$angZ), "Angular Rotation Z",xlimits=c(0,50))
-
-plot.frequency.spectrum(fft(Data_EDA$maxX), "Magnetic Flux Density X",xlimits=c(0,50))
-plot.frequency.spectrum(fft(Data_EDA$magY), "Magnetic Flux Density Y",xlimits=c(0,50))
-plot.frequency.spectrum(fft(Data_EDA$magZ), "Magnetic Flux Density Z",xlimits=c(0,50))
+# 
+# plot.frequency.spectrum <- function(X.k, title,xlimits=c(0,length(X.k))) {
+#   plot.data  <- cbind(0:(length(X.k)-1), Mod(X.k))
+#   plot.data[2:length(X.k),2] <- 2*plot.data[2:length(X.k),2] 
+#   plot(plot.data, t="h", lwd=2, main=title, 
+#        xlab="Frequency (Hz)", ylab="Strength",
+#        xlim=xlimits, ylim=c(0,max(Mod(plot.data[,2]))))
+# }
+# 
+# par(mfrow=c(3,3))
+# plot.frequency.spectrum(fft(Data_EDA$accX), "Acceleration X",xlimits=c(0,50))
+# plot.frequency.spectrum(fft(Data_EDA$accY), "Acceleration Y",xlimits=c(0,50))
+# plot.frequency.spectrum(fft(Data_EDA$accZ), "Acceleration Z",xlimits=c(0,50))
+# 
+# plot.frequency.spectrum(fft(Data_EDA$angX), "Angular Rotation X",xlimits=c(0,50))
+# plot.frequency.spectrum(fft(Data_EDA$angY), "Angular Rotation Y",xlimits=c(0,50))
+# plot.frequency.spectrum(fft(Data_EDA$angZ), "Angular Rotation Z",xlimits=c(0,50))
+# 
+# plot.frequency.spectrum(fft(Data_EDA$maxX), "Magnetic Flux Density X",xlimits=c(0,50))
+# plot.frequency.spectrum(fft(Data_EDA$magY), "Magnetic Flux Density Y",xlimits=c(0,50))
+# plot.frequency.spectrum(fft(Data_EDA$magZ), "Magnetic Flux Density Z",xlimits=c(0,50))
 
 ```
 
@@ -100,8 +100,8 @@ Falls_test <- Falls_df[-falls_train_ind, ]
 smp_size <- floor(0.80 * nrow(noFalls_df))
 nofalls_train_ind <- sample(seq_len(nrow(noFalls_df)), size = smp_size)
 
-noFalls_train <- Falls_df[nofalls_train_ind, ]
-noFalls_test <- Falls_df[-nofalls_train_ind, ]
+noFalls_train <- noFalls_df[nofalls_train_ind, ]
+noFalls_test <- noFalls_df[-nofalls_train_ind, ]
 
 Train_df <- rbind(noFalls_train,Falls_train)
 Test_df <- rbind(noFalls_test,Falls_test)
@@ -125,7 +125,7 @@ magZ <- signal::filtfilt(bf, Train_df$magZ)
 
 Target <- Train_df$Target
 
-Train_df <- data.frame(Time, accX, accY, accZ, angX, angY, angZ, maxX, magY, magZ, Target)
+Train_df <- data.frame( accX, accY, accZ, angX, angY, angZ, maxX, magY, magZ, Target)
 str(Train_df)
 ```
 
@@ -146,16 +146,13 @@ magZ <- signal::filtfilt(bf, Test_df$magZ)
 
 Target <- Test_df$Target
 
-Test_df <- data.frame(Time, accX, accY, accZ, angX, angY, angZ, maxX, magY, magZ, Target)
+Test_df <- data.frame(accX, accY, accZ, angX, angY, angZ, maxX, magY, magZ, Target)
 ```
 
 Define SWDFT
 
 ```{r}
-
-N_train <- length(Train_df)
-window_size <- 32
-
+maxAccZ<-SlidingWindow("entropy", abs(Falls_df$accZ), window, step)
 ```
 
 Try using SWDFT
@@ -166,37 +163,64 @@ Try using SWDFT
 swdft_fft <- function(x, n, taper=1) {
   N <- length(x)
   P <- N - n + 1
-  a <- array(data = NA, dim = c(n, P))
+  a <- array(data = NA, dim = c(n, P))}
 
-  for (p in n:N) {
-    a[, p - n + 1] <- Mod(stats::fft(z = x[(p - n + 1):p] * taper))^2
-  }
-
-  return(a)
+  
+rms <- function(x){
+  sqrt(sum(x^2)/length(x))
 }
 
-entropy <- function(a){
-  sh(Mod(fft(a)), alpha = "shannon")
+q1 <- function(x){
+  quantile(x, 0.25,na.rm = TRUE)
 }
 
-mean_energy <- function(a){
+q3 <- function(x){
+  quantile(x, 0.75,na.rm = TRUE)
+}
+
+
+entropy <- function(a,Fs=100){
+  t <- seq(1/Fs, length(a)*1/Fs, 1/Fs)
+  a<-a-mean(a)
+  n = length(a)
+  dt = 1/Fs
+  fNyq = 1/(2*dt)
+  tmax = max(t)
+  df = 1/tmax
+  f = seq(-fNyq, fNyq-df, by=df)
+  mask=rep(c(1, -1),length.out=n)
+  aa = a * mask
+  sh(Mod(fft(aa)), alpha = "shannon")
+}
+
+mean_energy <- function(a,Fs=100){
+  t <- seq(1/Fs, length(a)*1/Fs, 1/Fs)
+  a<-a-mean(a)
+  n = length(a)
+  dt = 1/Fs
+  fNyq = 1/(2*dt)
+  tmax = max(t)
+  df = 1/tmax
+  f = seq(-fNyq, fNyq-df, by=df)
+  mask=rep(c(1, -1),length.out=n)
+  aa = a * mask
   # J/Hz; source: http://aaronscher.com/Course_materials/Communication_Systems/documents/Energy_signals_matlab_tutorial.pdf
-  mean(Mod(fft(a))^2)
+  mean(Mod(fft(aa))^2)
 }
 
-total_energy <- function(a){
+total_energy <- function(a,Fs=100){
+  t <- seq(1/Fs, length(a)*1/Fs, 1/Fs)
+  a<-a-mean(a)
+  n = length(a)
+  dt = 1/Fs
+  fNyq = 1/(2*dt)
+  tmax = max(t)
+  df = 1/tmax
+  f = seq(-fNyq, fNyq-df, by=df)
+  mask=rep(c(1, -1),length.out=n)
+  aa = a * mask
   # I think you are missing a ^2 here
-  sum(Mod(fft(a)))
-}
-
-power <- function(a){
-  # I think this might be the same thing as mean energy 
-  mean(Mod(fft(a))^2)
-}
-
-sum_coefficients <- function(a){
-  # what are coefficients here? idk how this is different than total energy
-  sum(Mod(fft(a)))
+  sum(Mod(fft(aa))^2)
 }
 
 roll_off <- function(a,Fs=100){
@@ -237,88 +261,85 @@ spec_centroid <- function(a,Fs=100){
   cent<-tail(freq[roll],1)
   return(cent)}
 
-L2 <- function(a,Fs=100){
-  t <- seq(1/Fs, length(a)*1/Fs, 1/Fs)
-  a<-a-mean(a)
-  n = length(a)
-  dt = 1/Fs
-  fNyq = 1/(2*dt)
-  tmax = max(t)
-  df = 1/tmax
-  f = seq(-fNyq, fNyq-df, by=df)
-  mask=rep(c(1, -1),length.out=n)
-  aa = a * mask
-  amp<-Mod(fft(aa))/n
-  freq<-f[f>0]
-  amp<-amp[f>0]
-  l2<-sqrt(sum(amp^2))
-  return(l2)}
-
-
-entropy_accX <- SlidingWindow("entropy", abs(Train_df$accX), window, step)
-meanEnergy_accX <- SlidingWindow("mean_energy", abs(Train_df$accX), window, step)
-totalEnergy_accX <- SlidingWindow("total_energy", abs(Train_df$accX), window, step)
-power_accX <- SlidingWindow("power", abs(Train_df$accX), window, step)
-sum_coefficients_accX <- SlidingWindow("sum_coefficients", abs(Train_df$accX), window, step)
-
-entropy_angX <- SlidingWindow("entropy", abs(Train_df$angX), window, step)
-meanEnergy_angX <- SlidingWindow("mean_energy", abs(Train_df$angX), window, step)
-totalEnergy_angX <- SlidingWindow("total_energy", abs(Train_df$angX), window, step)
-power_angX <- SlidingWindow("power", abs(Train_df$angX), window, step)
-sum_coefficients_angX <- SlidingWindow("sum_coefficients", abs(Train_df$angX), window, step)
-
-entropy_magX <- SlidingWindow("entropy", abs(Train_df$maxX), window, step)
-meanEnergy_magX <- SlidingWindow("mean_energy", abs(Train_df$maxX), window, step)
-totalEnergy_magX <- SlidingWindow("total_energy", abs(Train_df$maxX), window, step)
-power_magX <- SlidingWindow("power", abs(Train_df$maxX), window, step)
-sum_coefficients_magX <- SlidingWindow("sum_coefficients", abs(Train_df$maxX), window, step)
-
-Targets <- SlidingWindow("max", Train_df$Target, window, step)
-
-
-# Efficient way to perform calculations on all variables and store in new dataframe? Old way I did it in EDA.RMD could work, but it's very inefficient. 
-
-# only doing x?
 
 ```
 
 ```{r}
-# ggplot(df.disc[1:20,], aes(x=freq, y=ammount)) + geom_bar(stat = "identity")
-roll_off(accX,Fs) 
-rolloff_accX <- SlidingWindow("roll_off", abs(Train_df$accX), window, step)
-
-```
-```{r}
-spec_centroid(accX,Fs)
-specCen_accX <- SlidingWindow("spec_centroid", abs(Train_df$accX), window, step)
-
+z<-(slide(Test_df[,1],'entropy',.before = 100,.after = 100,.step = 50))
+mylist<-z[-which(sapply(z, is.null))]
 ```
 
 ```{r}
+# is.numeric(Train_df[,names(Train_df)])
+df_in<-Test_df
+name<-c('Index')
+feature_gen<- function(df_in,feats,stp=50,win=200){
 
-L2(accX)
-L2_accX <- SlidingWindow("L2", abs(Train_df$accX), window, step)
+# ix<-slide(df_in[,1],max,.before =100 ,.after = 100,.step = stp)
+# index<-length(ix[-which(sapply(ix, is.null))])
+trgt<-slide(df_in[,1],max,.before =100 ,.after = 100,.step = stp)
+# target<-length(trgt[-which(sapply(trgt, is.null))])
+df_out<-data.frame(Index=seq(1,index,1),Target=target)
 
+df_in$Target<-as.logical(df_in$Target)
+col_inds<-which(unlist(lapply(df_in, is.numeric)))
+count=3
+for (i in 1:length(feats)){
+  for (j in 1:length(col_inds)){
+  name[count]<-paste(names(df_in)[j],'_',feats[i],sep = '')
+  count<-count+1
+  # df<-slide(df_in[,j],feats[i],.before =100 ,.after = 100,.step = 100)
+  # df_mid<-df[-which(sapply(df, is.null))]
+  df<-as.data.frame(SlidingWindow(feats[i], df_in[,j], window, step))
+  df_out<-cbind(df_out,df)
+  # names(df)<-name[count]
+  }}
+return(df_out)}
 
 ```
 
 ```{r}
-t <- seq(1/Fs, length(a)*1/Fs, 1/Fs)
-a<-a-mean(a)
-n = length(a)
-dt = 1/Fs
-fNyq = 1/(2*dt)
-tmax = max(t)
-df = 1/tmax
-f = seq(-fNyq, fNyq-df, by=df)
-mask=rep(c(1, -1),length.out=n)
-aa = a * mask
-AA <- fft(aa)/n
+df_in<-Test_df
+feats<-c('entropy','mean_energy','total_energy','roll_off','spec_centroid','min','max','q1','q3','sd','skewness','kurtosis','median')
+target<-SlidingWindow("max", df_in$Target, window, step)
+# trgt<-slide(df_in[,1],max,.before =100 ,.after = 100,.step = 100)
+# target<-length(trgt[-which(sapply(trgt, is.null))])
 
-# Plot the amplitude spectrum vector against the freq. vector
+df_out<-data.frame(Target=target)
 
-plot(f,abs(YY), type='h')
+df_in$Target<-as.logical(df_in$Target)
+col_inds<-which(unlist(lapply(df_in, is.numeric)))
+count=2
+for (i in 1:length(feats)){
+  for (j in 1:length(col_inds)){
+  name[count]<-paste(names(df_in)[j],'_',feats[i],sep = '')
+  count<-count+1
+  cat(name[count],' ')
+  # df<-slide(df_in[,j],feats[i],.before =100 ,.after = 100,.step = 100)
+  # df_mid<-df[-which(sapply(df, is.null))]
+  df<-as.data.frame(SlidingWindow(feats[i], df_in[,j], window, step))
+  df_out<-cbind(df_out,df)
+}}  #names(df_out)<-name
 ```
+
+```{r}
+Fs <- 100
+win <- 2
+stp <- 0.5
+window <-win*Fs
+step <- stp*Fs
+feats<-c('entropy','mean_energy','total_energy','roll_off','spec_centroid','rms','min','max','q1','q3','sd','skewness','kurtosis','median')
+Test_feat_df<-feature_gen(Test_df,feats,win = 200,stp=50)
+# Train_feat_df<-feature_gen(Train_df,feats,win = 200,stp=40)
+```
+```{r}
+Train_feat_df<-feature_gen(Train_df,feats,win = 200,stp=40)
+```
+```{r}
+
+```
+
+
 
 Check if new features correlate with target
 
