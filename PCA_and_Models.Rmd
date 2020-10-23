@@ -23,23 +23,34 @@ library(ROCR) # prediction(), performance()
 set.seed(123)
 ```
 
+Import time features (remove later with train_df)
 PCA to find top contributors
-
 Standardize/scale dataset before PCA
+
 ```{r}
-standardized = scale(df[,1:125], center=TRUE, scale=TRUE)
-standardized = cbind(standardized, df$target)
-standardized_df = as_tibble(standardized)
-standardized_df = standardized_df %>%
-  mutate(target = V126) %>%
-  select(-V126)
-summary(standardized_df)
-head(standarized_df)
+
+df <- read_csv("time_features.csv")
+targets <- df$Targets
+standardized = scale(df[,2:ncol(df)], center=TRUE, scale=TRUE)
+standardized = cbind(standardized, targets)
+df_standard = as_tibble(standardized)
+#standardized_df = standardized_df %>%
+#  mutate(target = V1) %>%
+#  select(-V1)
+#summary(standardized_df)
+#head(standardized_df)
+head(df_standard)
+
+sample <- sample.split(df_standard$mean_Falls_df.accX,SplitRatio = 0.8)
+train_df <- subset(df_standard,sample ==TRUE)
+test_df <- subset(df_standard, sample==FALSE)
+
+
 ```
 
 Calculate Principal Components and plot screeplot
 ```{r}
-prin_comp = princomp(~ ., standardized_df[1:125], cor = TRUE)
+prin_comp = princomp(~ ., df_standard[1:ncol(df_standard)-1], cor = TRUE)
 summary(prin_comp)
 screeplot(prin_comp,  npcs = 10, type = c("lines"), main="Scree Plot")
 ```
@@ -49,11 +60,14 @@ Plot to find features corresponding to 95% of variance
 ```{r}
 pve = prin_comp$sdev^2/sum(prin_comp$sdev^2)
 cum_pve = cumsum(prin_comp$sdev^2)/sum(prin_comp$sdev^2)
-comps = 1:30
+comps = 1:72
 pve_df = data.frame(comps, pve)
 cum_pve_df = data.frame(comps, cum_pve)
 
 ggplot(cum_pve_df, aes(x=comps, y = cum_pve))+geom_line()+geom_point()+labs(x="Principal Component", y = "Cumulative Proportion of Variance Explained", title = "Cumulative Proportion of Variance Explained Over Number of Principal Components")+geom_hline(yintercept = 0.95, color = "red")+geom_text(aes(0, 0.95, label = 0.95, vjust = 1))
+
+cat("Number of principal components needed to describe at least 95% of variance:", min(which(cum_pve > 0.95)))
+
 ```
 ```{r}
 prin_comp$loadings
@@ -61,35 +75,198 @@ prin_comp$loadings
 
 BiPlot
 ```{r, fig.width=12, fig.height=18}
-autoplot(prin_comp, data = standardized_df, colour = 'diagnosis', loadings = TRUE, loadings.colour = "blue", loadings.label = TRUE)+labs(x="Principal Component 1", y="Principal Component 2", title= "PCA Biplot")
+autoplot(prin_comp, data = df_standard, colour = 'targets', loadings = TRUE, loadings.colour = "blue", loadings.label = TRUE)+labs(x="Principal Component 1", y="Principal Component 2", title= "PCA Biplot")
 ```
 
+```{r}
 
+varPCA <- function(prin_comp, x){
+  names(prin_comp$loadings[,x][order(abs(prin_comp$loadings[,x]),decreasing=TRUE)][x])
+}
+
+for(i in 1:25){
+  cat("\nVariable corresponding to PC", i, ":  ", varPCA(prin_comp, i))
+}
+
+```
+
+```{r, fig.width=8, fig.height=8}
+
+pca_df_processed <- data.frame(targets, prin_comp$scores[,1], prin_comp$scores[,2], prin_comp$scores[,3], prin_comp$scores[,4])
+head(pca_df_processed)
+pca_df_processed[, "targets"] <- sapply(pca_df_processed[, "targets"], as.factor)
+colnames(pca_df_processed)[2] <- "PC1" 
+colnames(pca_df_processed)[3] <- "PC2" 
+colnames(pca_df_processed)[4] <- "PC3" 
+colnames(pca_df_processed)[5] <- "PC4" 
+
+a <- ggplot(pca_df_processed, aes(x=PC1, y=PC2, color=targets)) + geom_point() + 
+  xlab("PC1 (44.27%)") + ylab("PC2") + scale_color_manual(name = "Fall", labels = c("No", "Yes"), values = c("#4477AA", "#BB4444"))
+b <- ggplot(pca_df_processed, aes(x=PC1, y=PC3, color=targets)) + geom_point() + 
+  xlab("PC1 (44.27%)") + ylab("PC3") + scale_color_manual(name = "Fall", labels = c("No", "Yes"), values = c("#4477AA", "#BB4444"))
+c <- ggplot(pca_df_processed, aes(x=PC1, y=PC4, color=targets)) + geom_point() + 
+  xlab("PC1 (44.27%)") + ylab("PC4") + scale_color_manual(name = "Fall", labels = c("No", "Yes"), values = c("#4477AA", "#BB4444"))
+d <- ggplot(pca_df_processed, aes(x=PC2, y=PC3, color=targets)) + geom_point() + 
+  xlab("PC2 (18.97%)") + ylab("PC3") + scale_color_manual(name = "Fall", labels = c("No", "Yes"), values = c("#4477AA", "#BB4444"))
+e <- ggplot(pca_df_processed, aes(x=PC2, y=PC4, color=targets)) + geom_point() + 
+  xlab("PC2 (18.97%)") + ylab("PC4") + scale_color_manual(name = "Fall", labels = c("No", "Yes"), values = c("#4477AA", "#BB4444"))
+f <- ggplot(pca_df_processed, aes(x=PC3, y=PC4, color=targets)) + geom_point() + 
+  xlab("PC3 (9.39%)") + ylab("PC4") + scale_color_manual(name = "Fall", labels = c("No", "Yes"), values = c("#4477AA", "#BB4444"))
+
+a + b + c + d + e + f  + plot_layout(ncol = 2, nrow = 3, guides = "collect") + 
+  plot_annotation(
+  title = 'Scatterplots Comparing the First 4 Principal Components')
+
+
+```
 
 Model Building
-KNN
-```{r}
-knn_model = knn(x_train, x_test, y_train, k=sqrt(nrow(df_train)), prob=TRUE, use.all = TRUE)
-summary(knn_model)
-```
 
 ```{r}
-confusion_matrix = CrossTable(knn_model, y_test, prop.chisq = FALSE, prop.r = FALSE, prop.c = FALSE, prop.t = FALSE)
+
+pca_df <- data.frame(targets)
+
+for(i in 1:6){
+  pca_df <- cbind(pca_df, prin_comp$scores[,i])
+}
+#colnames(pca_df) <- c("targets", "PC1", "PC2", "PC3", "PC4", "PC5", "PC6", "PC7", 
+#                      "PC8", "PC9", "PC10", "PC11", "PC12", "PC13", "PC14", "PC15",
+#                      "PC16", "PC17", "PC18", "PC19", "PC20", "PC21", "PC22", "PC23",
+#                      "PC24", "PC25")
+colnames(pca_df) <- c("targets", "PC1", "PC2", "PC3", "PC4", "PC5", "PC6")
+
+sample_pca <- sample.split(pca_df$targets,SplitRatio = 0.8)
+train_df_pca <- subset(pca_df,sample ==TRUE)
+test_df_pca <- subset(pca_df, sample==FALSE)
+
 ```
 
 
-Logisitic Regression
+```{r}
+
+errorRate <- function(model, test){
+  1-mean(model==test)
+}
+
+```
+
+
+Logistic Regression (no PCA)
 ```{r}
 set.seed(123)
-logistic_model = glm(data=train_df, family=binomial(link='logit'),target~    )
+logistic_model = glm(targets~.,data=train_df, family=binomial(link='logit'))
 summary(logistic_model)
 ```
 
-LDA
 ```{r}
-lda_model=lda(target~    , data=train_df)
+
+logistic_test <- predict(logistic_model, test_df, type = "response")
+logistic_binary <- ifelse(logistic_test>0.1, 1, 0)
+logistic_error <- errorRate(logistic_binary, test_df[,ncol(test_df)])
+logistic_accuracy <- 1 - logistic_error
+cat("Error Rate:" ,logistic_error,
+    "\nAccuracy:  ", logistic_accuracy)
+
+logistic_prediction <- prediction(logistic_test, test_df[,ncol(test_df)])
+roc_logistic = performance(logistic_prediction, measure = "tpr", x.measure = "fpr")
+plot(roc_logistic, main = "ROC Curve for Logistic Regression", colorize = T)
+abline(a=0, b= 1)
+
+auc_logistic <- performance(logistic_prediction, measure = "auc")@y.values[[1]]
+
+cat("\nLogistic Regression AUC:", auc_logistic)
+
+```
+Logistic Regression (PCA)
+```{r}
+set.seed(123)
+logistic_model_pca = glm(targets~.,data=train_df_pca, family=binomial(link='logit'))
+summary(logistic_model_pca)
+```
+
+```{r}
+
+logistic_test_pca <- predict(logistic_model_pca, test_df_pca, type = "response")
+logistic_binary_pca <- ifelse(logistic_test_pca>0.1, 1, 0)
+logistic_error_pca <- errorRate(logistic_binary_pca, test_df_pca[,1])
+logistic_accuracy_pca <- 1 - logistic_error_pca
+cat("Error Rate:" ,logistic_error_pca,
+    "\nAccuracy:  ", logistic_accuracy_pca)
+
+logistic_prediction_pca <- prediction(logistic_test_pca, test_df_pca[,1])
+roc_logistic_pca = performance(logistic_prediction_pca, measure = "tpr", x.measure = "fpr")
+plot(roc_logistic_pca, main = "ROC Curve for Logistic Regression", colorize = T)
+abline(a=0, b= 1)
+
+auc_logistic_pca <- performance(logistic_prediction_pca, measure = "auc")@y.values[[1]]
+
+cat("\nLogistic Regression AUC:", auc_logistic_pca)
+
+```
+
+LDA (no PCA)
+```{r}
+library(MASS)
+lda_model=lda(targets~., data=train_df)
 lda_model
 ```
+
+```{r}
+
+lda_test <- predict(lda_model, test_df, type = "response")
+lda_prediction <- prediction(lda_test$posterior[,2], test_df[,ncol(test_df)])
+roc_lda <- performance(lda_prediction, measure = "tpr", x.measure = "fpr")
+plot(roc_lda, main = "ROC Curve for LDA", colorize = T)
+abline(a=0, b= 1)
+
+lda_binary <- ifelse(lda_test$posterior[,2]>0.1, 1, 0)
+lda_error <- errorRate(lda_binary, test_df[,ncol(test_df)])
+lda_accuracy <- 1 - lda_error
+
+auc_lda <- performance(lda_prediction, measure = "auc")@y.values[[1]]
+cat("Logistic Regression Error Rate:", 1-logistic_accuracy,
+    "\nLogistic Regression Accuracy:", logistic_accuracy,
+    "\nLDA AUC: ", auc_lda)
+
+```
+
+LDA (PCA)
+
+```{r}
+library(MASS)
+lda_model_pca=lda(targets~., data=train_df_pca)
+lda_model_pca
+```
+
+```{r}
+
+lda_test_pca <- predict(lda_model_pca, test_df_pca, type = "response")
+lda_prediction_pca <- prediction(lda_test_pca$posterior[,2], test_df_pca[,1])
+roc_lda_pca <- performance(lda_prediction_pca, measure = "tpr", x.measure = "fpr")
+plot(roc_lda_pca, main = "ROC Curve for LDA", colorize = T)
+abline(a=0, b= 1)
+
+lda_binary_pca <- ifelse(lda_test_pca$posterior[,2]>0.1, 1, 0)
+lda_error_pca <- errorRate(lda_binary_pca, test_df_pca[,1])
+lda_accuracy_pca <- 1 - lda_error_pca
+
+auc_lda_pca <- performance(lda_prediction_pca, measure = "auc")@y.values[[1]]
+cat("Logistic Regression Error Rate:", 1-logistic_accuracy_pca,
+    "\nLogistic Regression Accuracy:", logistic_accuracy_pca,
+    "\nLDA AUC: ", auc_lda_pca)
+
+```
+
+KNN
+```{r}
+#knn_model = knn(x_train, x_test, y_train, k=sqrt(nrow(df_train)), prob=TRUE, use.all = TRUE)
+#summary(knn_model)
+```
+
+```{r}
+#confusion_matrix = CrossTable(knn_model, y_test, prop.chisq = FALSE, prop.r = FALSE, prop.c = FALSE, prop.t = FALSE)
+```
+
 
 
 
