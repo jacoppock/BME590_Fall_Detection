@@ -20,6 +20,9 @@ library(gmodels) # CrossTable()
 library(caret) # creatFolds()
 library(caTools) #sample.split()
 library(ROCR) # prediction(), performance()
+library(MLeval)
+library(MLmetrics)
+library(sparseLDA)
 set.seed(123)
 ```
 
@@ -28,7 +31,6 @@ PCA to find top contributors
 Standardize/scale dataset before PCA
 
 ```{r}
-
 df <- read_csv("time_features.csv")
 targets <- df$Targets
 standardized = scale(df[,2:ncol(df)], center=TRUE, scale=TRUE)
@@ -39,12 +41,14 @@ df_standard = as_tibble(standardized)
 #  select(-V1)
 #summary(standardized_df)
 #head(standardized_df)
-head(df_standard)
 
 sample <- sample.split(df_standard$mean_Falls_df.accX,SplitRatio = 0.8)
-train_df <- subset(df_standard,sample ==TRUE)
-test_df <- subset(df_standard, sample==FALSE)
-
+train_ti <- subset(df_standard,sample==TRUE)
+train_ti <- train_ti[-c(1), ]
+test_ti <- subset(df_standard, sample==FALSE)
+test_ti <- test_ti[-c(1, 2, 3), ]
+train_fq <- read_csv("Train_feat_df.csv")
+test_fq <- read_csv("Test_feat_df.csv")
 
 ```
 
@@ -148,123 +152,175 @@ errorRate <- function(model, test){
   1-mean(model==test)
 }
 
-```
-
-
-Logistic Regression (no PCA)
-```{r}
-set.seed(123)
-logistic_model = glm(targets~.,data=train_df, family=binomial(link='logit'))
-summary(logistic_model)
-```
-
-```{r}
-
-logistic_test <- predict(logistic_model, test_df, type = "response")
-logistic_binary <- ifelse(logistic_test>0.1, 1, 0)
-logistic_error <- errorRate(logistic_binary, test_df[,ncol(test_df)])
-logistic_accuracy <- 1 - logistic_error
-cat("Error Rate:" ,logistic_error,
-    "\nAccuracy:  ", logistic_accuracy)
-
-logistic_prediction <- prediction(logistic_test, test_df[,ncol(test_df)])
-roc_logistic = performance(logistic_prediction, measure = "tpr", x.measure = "fpr")
-plot(roc_logistic, main = "ROC Curve for Logistic Regression", colorize = T)
-abline(a=0, b= 1)
-
-auc_logistic <- performance(logistic_prediction, measure = "auc")@y.values[[1]]
-
-cat("\nLogistic Regression AUC:", auc_logistic)
-
-```
-Logistic Regression (PCA)
-```{r}
-set.seed(123)
-logistic_model_pca = glm(targets~.,data=train_df_pca, family=binomial(link='logit'))
-summary(logistic_model_pca)
-```
-
-```{r}
-
-logistic_test_pca <- predict(logistic_model_pca, test_df_pca, type = "response")
-logistic_binary_pca <- ifelse(logistic_test_pca>0.1, 1, 0)
-logistic_error_pca <- errorRate(logistic_binary_pca, test_df_pca[,1])
-logistic_accuracy_pca <- 1 - logistic_error_pca
-cat("Error Rate:" ,logistic_error_pca,
-    "\nAccuracy:  ", logistic_accuracy_pca)
-
-logistic_prediction_pca <- prediction(logistic_test_pca, test_df_pca[,1])
-roc_logistic_pca = performance(logistic_prediction_pca, measure = "tpr", x.measure = "fpr")
-plot(roc_logistic_pca, main = "ROC Curve for Logistic Regression", colorize = T)
-abline(a=0, b= 1)
-
-auc_logistic_pca <- performance(logistic_prediction_pca, measure = "auc")@y.values[[1]]
-
-cat("\nLogistic Regression AUC:", auc_logistic_pca)
+convertFactor <- function(df){
+  df[, "targets"] <- sapply(df[, "targets"], as.factor)
+}
+  
 
 ```
 
-LDA (no PCA)
+
 ```{r}
-library(MASS)
-lda_model=lda(targets~., data=train_df)
-lda_model
+
+build_LR_CV <- function(k, train_df, test_df){
+  set.seed(123)
+  train_df$targets[train_df$targets == 1] <- "yes"
+  train_df$targets[train_df$targets == 0] <- "no"
+  convertFactor(train_df)
+  convertFactor(test_df)
+  train_control <- trainControl(method = "cv",
+                                number = k,
+                                savePredictions = TRUE, 
+                                classProbs = TRUE, 
+                                verboseIter = TRUE,
+                                summaryFunction = prSummary)
+  model <- train(targets ~ .,
+                 data = train_df,
+                 trControl = train_control,
+                 method = "glmnet",
+                 family = "binomial",
+                 metric = "AUC",
+                 tuneGrid=expand.grid(alpha = 0:1, lambda = seq(0.0001, 1, length = 20)))
+  plot(model)
+  #res <- evalm(model)
+  #model$roc
+}
+
+build_LR_CV(5, train_ti, test_ti)
+
 ```
 
 ```{r}
 
-lda_test <- predict(lda_model, test_df, type = "response")
-lda_prediction <- prediction(lda_test$posterior[,2], test_df[,ncol(test_df)])
-roc_lda <- performance(lda_prediction, measure = "tpr", x.measure = "fpr")
-plot(roc_lda, main = "ROC Curve for LDA", colorize = T)
-abline(a=0, b= 1)
+build_LR_CV2 <- function(k, train_df, test_df){
+  train_df$targets[train_df$targets == 1] <- "yes"
+  train_df$targets[train_df$targets == 0] <- "no"
+  myControl <- trainControl(
+                             method = "repeatedcv", number = k,
+                             summaryFunction = twoClassSummary,
+                             classProbs = TRUE,
+                             verboseIter = TRUE
+                            )
+  myGrid <- expand.grid(
+                         alpha = c(0:1),
+                         lambda = c(0.0001, 0.001, 0.01, 0.1, 1)
+                        )
+  
+  set.seed(33)
+  model <- train(targets ~., 
+                 data = train_df, 
+                 method = "glmnet",
+                 tuneGrid = myGrid, 
+                 metric = "ROC",
+                 trControl = myControl)
+  
+  #Check the model
+  model
+  max((model$results)$ROC)
+  plot(model) 
+  #res <- evalm(model)
+  #model$roc
+}
 
-lda_binary <- ifelse(lda_test$posterior[,2]>0.1, 1, 0)
-lda_error <- errorRate(lda_binary, test_df[,ncol(test_df)])
-lda_accuracy <- 1 - lda_error
-
-auc_lda <- performance(lda_prediction, measure = "auc")@y.values[[1]]
-cat("Logistic Regression Error Rate:", 1-logistic_accuracy,
-    "\nLogistic Regression Accuracy:", logistic_accuracy,
-    "\nLDA AUC: ", auc_lda)
+build_LR_CV2(10, train_ti, test_ti)
 
 ```
-
-LDA (PCA)
 
 ```{r}
 library(MASS)
-lda_model_pca=lda(targets~., data=train_df_pca)
-lda_model_pca
+build_LDA_CV2 <- function(k, train_df, test_df){
+  train_df$targets[train_df$targets == 1] <- "yes"
+  train_df$targets[train_df$targets == 0] <- "no"
+  myControl <- trainControl(
+                             method = "repeatedcv", number = k,
+                             summaryFunction = twoClassSummary,
+                             classProbs = TRUE,
+                             verboseIter = TRUE
+                            )
+  myGrid <-  expand.grid(.NumVars = c(2:10), 
+                        .lambda = c(0, 0.01, 0.1, 1, 10, 100))
+  set.seed(33)
+  model <- train(targets ~., 
+                 data = train_df, 
+                 method = "sparseLDA",
+                 tuneGrid = myGrid, 
+                 metric = "ROC",
+                 trControl = myControl)
+  
+  #Check the model
+  model
+  plot(model)
+}
+
+build_LDA_CV2(5, train_ti, test_ti)
+
+```
+
+
+Logistic Regression Function
+```{r}
+buildLR <- function(targets, train_df, test_df, threshold){
+  set.seed(123)
+  logistic_model = glm(targets~.,data=train_df, family=binomial(link='logit'))
+  summary(logistic_model)
+  logistic_test <- predict(logistic_model, test_df, type = "response")
+  logistic_binary <- ifelse(logistic_test>threshold, 1, 0)
+  logistic_error <- errorRate(logistic_binary, test_df[,ncol(test_df)])
+  logistic_accuracy <- 1 - logistic_error
+  cat("Error Rate:" ,logistic_error,
+      "\nAccuracy:  ", logistic_accuracy)
+  
+  logistic_prediction <- prediction(logistic_test, test_df[,ncol(test_df)])
+  roc_logistic = performance(logistic_prediction, measure = "tpr", x.measure = "fpr")
+  plot(roc_logistic, main = "ROC Curve for Logistic Regression", colorize = T)
+  abline(a=0, b= 1)
+  
+  auc_logistic <- performance(logistic_prediction, measure = "auc")@y.values[[1]]
+  
+  cat("\nLogistic Regression AUC:", auc_logistic) 
+}
 ```
 
 ```{r}
 
-lda_test_pca <- predict(lda_model_pca, test_df_pca, type = "response")
-lda_prediction_pca <- prediction(lda_test_pca$posterior[,2], test_df_pca[,1])
-roc_lda_pca <- performance(lda_prediction_pca, measure = "tpr", x.measure = "fpr")
-plot(roc_lda_pca, main = "ROC Curve for LDA", colorize = T)
-abline(a=0, b= 1)
-
-lda_binary_pca <- ifelse(lda_test_pca$posterior[,2]>0.1, 1, 0)
-lda_error_pca <- errorRate(lda_binary_pca, test_df_pca[,1])
-lda_accuracy_pca <- 1 - lda_error_pca
-
-auc_lda_pca <- performance(lda_prediction_pca, measure = "auc")@y.values[[1]]
-cat("Logistic Regression Error Rate:", 1-logistic_accuracy_pca,
-    "\nLogistic Regression Accuracy:", logistic_accuracy_pca,
-    "\nLDA AUC: ", auc_lda_pca)
+buildLR(targets, train_ti, test_ti, 0.1)
+buildLR(targets, train_fq, test_fq, 0.1)
 
 ```
 
-KNN
+
+
+LDA Function
+
 ```{r}
-#knn_model = knn(x_train, x_test, y_train, k=sqrt(nrow(df_train)), prob=TRUE, use.all = TRUE)
-#summary(knn_model)
+
+library(MASS)
+
+buildLDA <- function(targets, train_df, test_df, threshold){
+  lda_model=lda(targets~., data=train_df)
+  lda_test <- predict(lda_model, test_df, type = "response")
+  lda_prediction <- prediction(lda_test$posterior[,2], test_df[,ncol(test_df)])
+  roc_lda <- performance(lda_prediction, measure = "tpr", x.measure = "fpr")
+  plot(roc_lda, main = "ROC Curve for LDA", colorize = T)
+  abline(a=0, b= 1)
+  
+  lda_binary <- ifelse(lda_test$posterior[,2]>threshold, 1, 0)
+  lda_error <- errorRate(lda_binary, test_df[,ncol(test_df)])
+  lda_accuracy <- 1 - lda_error
+  
+  auc_lda <- performance(lda_prediction, measure = "auc")@y.values[[1]]
+  cat("Logistic Regression Error Rate:", 1-lda_accuracy,
+      "\nLogistic Regression Accuracy:", lda_accuracy,
+      "\nLDA AUC: ", auc_lda)
+}
+
 ```
 
 ```{r}
-#confusion_matrix = CrossTable(knn_model, y_test, prop.chisq = FALSE, prop.r = FALSE, prop.c = FALSE, prop.t = FALSE)
+
+buildLDA(targets, train_ti, test_ti, 0.1)
+buildLDA(targets, train_fq, test_fq, 0.1)
+
 ```
 
 
