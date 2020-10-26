@@ -1,0 +1,95 @@
+---
+title: "LogisticRegression"
+author: "Cyrus Tanade"
+date: "10/27/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(lubridate)
+library(patchwork)
+library(gridExtra)
+library(psych)
+library(corrplot)
+library(ggfortify)
+library(factoextra)
+library(class) #knn
+library(gmodels) # CrossTable()
+library(caret) # creatFolds()
+library(caTools) #sample.split()
+library(ROCR) # prediction(), performance()
+library(MLeval)
+library(MLmetrics)
+library(sparseLDA)
+set.seed(123)
+```
+
+Import time features (remove later with train_df)
+PCA to find top contributors
+Standardize/scale dataset before PCA
+
+```{r}
+df <- read_csv("time_features.csv")
+targets <- df$Targets
+standardized = scale(df[,2:ncol(df)], center=TRUE, scale=TRUE)
+standardized = cbind(standardized, targets)
+df_standard = as_tibble(standardized)
+#standardized_df = standardized_df %>%
+#  mutate(target = V1) %>%
+#  select(-V1)
+#summary(standardized_df)
+#head(standardized_df)
+
+sample <- sample.split(df_standard$mean_Falls_df.accX,SplitRatio = 0.8)
+train_ti <- subset(df_standard,sample==TRUE)
+train_ti <- train_ti[-c(1), ]
+test_ti <- subset(df_standard, sample==FALSE)
+test_ti <- test_ti[-c(1, 2, 3), ]
+train_fq <- read_csv("Train_feat_df.csv") # this is actually overall dataframe
+test_fq <- read_csv("Test_feat_df.csv") # this is actually overall dataframe
+
+```
+
+Logistic Regression
+```{r}
+
+build_LR_CV2 <- function(k, train_df, test_df){
+  train_df$targets[train_df$targets == 1] <- "yes"
+  train_df$targets[train_df$targets == 0] <- "no"
+  myControl <- trainControl(
+                             method = "repeatedcv", number = k,
+                             summaryFunction = twoClassSummary,
+                             classProbs = TRUE,
+                             verboseIter = TRUE,
+                             savePredictions = TRUE
+                            )
+  myGrid <- expand.grid(
+                         alpha = c(0:1),
+                         lambda = c(0.0001, 0.001, 0.01, 0.1, 1)
+                        )
+  
+  set.seed(33)
+  model <- train(targets ~., 
+                 data = train_df, 
+                 method = "glmnet",
+                 tuneGrid = myGrid, 
+                 metric = "ROC",
+                 trControl = myControl)
+  
+  #Check the model
+  model
+  max((model$results)$ROC)
+  #plot(model) 
+  res <- evalm(model)
+  model$roc
+}
+
+build_LR_CV2(5, train_ti, test_ti)
+
+```
