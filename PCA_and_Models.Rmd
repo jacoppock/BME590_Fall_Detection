@@ -274,7 +274,7 @@ library(e1071)
 as_factor(train_df$targets)
 ```
 ```{r}
-svm_model = svm(targets~., data=train_df, type='C-classification', kernel='radial', cost='0.1')
+svm_model = svm(targets~., data=train_df, type='C-classification', kernel='radial', cost='0.1', probability=TRUE)
 summary(svm_model)
 #plot(svmfit, train_df$targets)
 # not sure if we want radial, linear, polynomial, sigmoid basis function-think we have to test them - probably not linear
@@ -289,7 +289,7 @@ summary(tuned)
 
 ```{r}
 # ROC curve is not working
-svm_test <- predict(svm_model, test_df, type = "response")
+svm_test <- predict(svm_model, test_df, type = "prob", probability = TRUE)
 svm_prediction <- prediction(svm_test, test_df$targets, label.ordering = NULL)
 roc_svm <- performance(svm_prediction, measure = "tpr", x.measure = "fpr")
 plot(roc_svm, main = "ROC Curve for SVM", colorize = T)
@@ -305,6 +305,17 @@ cat("SVM Error Rate:", 1-svm_accuracy,
     "\nLDA AUC: ", auc_svm)
 ```
 
+
+```{r}
+library(pROC)
+```
+
+```{r}
+svm_test = predict(svm_model, test_df[,1:72], type = "prob", probability = TRUE)
+roc_svm = roc(response=test_df$targets, predictor=svm_test)
+plot(roc_svm)
+roc_svm$auc
+```
 
 
 
