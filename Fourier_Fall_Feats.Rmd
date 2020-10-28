@@ -39,7 +39,6 @@ library(fftw)
 Falls_df1 <- read.csv('Fall_Data1.csv')
 Falls_df2 <- read.csv('Fall_Data2.csv')
 Data  <- rbind(Falls_df1,Falls_df2)
-Data_EDA <- rbind(Falls_df1,Falls_df2)
 rm(Falls_df1)
 rm(Falls_df2)
 ```
@@ -105,6 +104,7 @@ noFalls_test <- noFalls_df[-nofalls_train_ind, ]
 
 Train_df <- rbind(noFalls_train,Falls_train)
 Test_df <- rbind(noFalls_test,Falls_test)
+
 ```
 
 TRAIN BUTTERWORTH
@@ -152,7 +152,6 @@ Test_df <- data.frame(accX, accY, accZ, angX, angY, angZ, maxX, magY, magZ, Targ
 Define SWDFT
 
 ```{r}
-maxAccZ<-SlidingWindow("entropy", abs(Falls_df$accZ), window, step)
 ```
 
 Try using SWDFT
@@ -265,35 +264,36 @@ spec_centroid <- function(a,Fs=100){
 ```
 
 ```{r}
-z<-(slide(Test_df[,1],'entropy',.before = 100,.after = 100,.step = 50))
-mylist<-z[-which(sapply(z, is.null))]
+# z<-(slide(Test_df[,1],'entropy',.before = 100,.after = 100,.step = 50))
+# mylist<-z[-which(sapply(z, is.null))]
 ```
 
 ```{r}
 # is.numeric(Train_df[,names(Train_df)])
-df_in<-Test_df
-name<-c('Index')
-feature_gen<- function(df_in,feats,stp=50,win=200){
 
-# ix<-slide(df_in[,1],max,.before =100 ,.after = 100,.step = stp)
-# index<-length(ix[-which(sapply(ix, is.null))])
-trgt<-slide(df_in[,1],max,.before =100 ,.after = 100,.step = stp)
+
+feature_gen<- function(df_in,feats,stp=50,win=200){
+name<-c('Target')
+target<-SlidingWindow("max", df_in$Target, window, step)
+# trgt<-slide(df_in[,1],max,.before =100 ,.after = 100,.step = 100)
 # target<-length(trgt[-which(sapply(trgt, is.null))])
-df_out<-data.frame(Index=seq(1,index,1),Target=target)
+
+df_out<-data.frame(Target=target)
 
 df_in$Target<-as.logical(df_in$Target)
 col_inds<-which(unlist(lapply(df_in, is.numeric)))
-count=3
+count=2
 for (i in 1:length(feats)){
   for (j in 1:length(col_inds)){
   name[count]<-paste(names(df_in)[j],'_',feats[i],sep = '')
   count<-count+1
+  cat(name[count],' ')
   # df<-slide(df_in[,j],feats[i],.before =100 ,.after = 100,.step = 100)
   # df_mid<-df[-which(sapply(df, is.null))]
   df<-as.data.frame(SlidingWindow(feats[i], df_in[,j], window, step))
   df_out<-cbind(df_out,df)
-  # names(df)<-name[count]
-  }}
+}}  
+names(df_out)<-name
 return(df_out)}
 
 ```
@@ -319,7 +319,7 @@ for (i in 1:length(feats)){
   # df_mid<-df[-which(sapply(df, is.null))]
   df<-as.data.frame(SlidingWindow(feats[i], df_in[,j], window, step))
   df_out<-cbind(df_out,df)
-}}  #names(df_out)<-name
+}}  names(df_out)<-name
 ```
 
 ```{r}
@@ -328,29 +328,28 @@ win <- 2
 stp <- 0.5
 window <-win*Fs
 step <- stp*Fs
-feats<-c('entropy','mean_energy','total_energy','roll_off','spec_centroid','rms','min','max','q1','q3','sd','skewness','kurtosis','median')
+feats<-c('entropy','mean_energy','total_energy','rms','min','max','q1','q3','sd','skewness','kurtosis','median')
 Test_feat_df<-feature_gen(Test_df,feats,win = 200,stp=50)
 # Train_feat_df<-feature_gen(Train_df,feats,win = 200,stp=40)
 ```
 ```{r}
-Train_feat_df<-feature_gen(Train_df,feats,win = 200,stp=40)
+Train_feat_df<-feature_gen(Train_df,feats,win = 200,stp=50)
 ```
+```{r}
+setwd("~/Desktop/Duke/Class/Fall 2020/Biomedical DS/BME590_Fall_Detection/")
+write_csv(Train_feat_df,'Train_feat_df.csv')
+```
+
 ```{r}
 
 ```
 
 
 
-Check if new features correlate with target
+
 
 ```{r, fig.width=10, fig.height=10}
-
-fft_df <- data.frame(entropy_accX, entropy_angX, entropy_magX,
-                     meanEnergy_accX, meanEnergy_angX, meanEnergy_magX,
-                     totalEnergy_accX, totalEnergy_angX, totalEnergy_magX,
-                     Targets)
-
-pairs(fft_df)
+# pairs(fft_df)
 
 ```
 ```{r}
@@ -359,9 +358,6 @@ pairs(fft_df)
 
 
 ```{r}
-apply(df,2,function(x) fft(as.numeric(x)))
-bf <- signal::butter(4, 1/49, type="low")
-accX <- signal::filtfilt(bf, Train_df$accX)
 ```
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
