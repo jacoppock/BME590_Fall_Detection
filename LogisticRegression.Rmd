@@ -1,3 +1,4 @@
+
 ---
 title: "LogisticRegression"
 author: "Cyrus Tanade"
@@ -59,25 +60,21 @@ test_fq <- read_csv("Test_feat_df.csv") # this is actually overall dataframe
 Logistic Regression
 ```{r}
 
-build_LR_CV2 <- function(k, train_df, test_df){
+build_LR_CV2 <- function(k, train_df, test_df,myGrid){
   train_df$targets[train_df$targets == 1] <- "yes"
   train_df$targets[train_df$targets == 0] <- "no"
   myControl <- trainControl(
-                             method = "repeatedcv", number = k,
+                             method = "cv", number = k,
                              summaryFunction = twoClassSummary,
                              classProbs = TRUE,
                              verboseIter = TRUE,
                              savePredictions = TRUE
                             )
-  myGrid <- expand.grid(
-                         alpha = c(0:1),
-                         lambda = c(0.0001, 0.001, 0.01, 0.1, 1)
-                        )
   
   set.seed(33)
   model <- train(targets ~., 
                  data = train_df, 
-                 method = "glmnet",
+                 method = "glm",
                  tuneGrid = myGrid, 
                  metric = "ROC",
                  trControl = myControl)
@@ -90,6 +87,41 @@ build_LR_CV2 <- function(k, train_df, test_df){
   model$roc
 }
 
-build_LR_CV2(5, train_ti, test_ti)
 
 ```
+
+```{r}
+myGrid <- data.frame(expand_grid(alpha = c(0,1),
+                         lambda = c(0.0001)
+                        ))
+build_LR_CV2(5, train_ti, test_ti,myGrid)
+```
+
+```{r}
+myGrid <- data.frame(expand_grid(alpha = c(0,1),
+                         lambda = c(0.001)
+                        ))
+build_LR_CV2(5, train_ti, test_ti,myGrid)
+```
+
+```{r}
+myGrid <- data.frame(expand_grid(alpha = c(0,1),
+                         lambda = c(0.01)
+                        ))
+build_LR_CV2(5, train_ti, test_ti,myGrid)
+```
+
+```{r}
+myGrid <- data.frame(expand_grid(alpha = c(0,1),
+                         lambda = c(0.1)
+                        ))
+build_LR_CV2(5, train_ti, test_ti,myGrid)
+```
+
+```{r}
+myGrid <- data.frame(expand_grid(alpha = c(0,1),
+                         lambda = c(1)
+                        ))
+build_LR_CV2(5, train_ti, test_ti,myGrid)
+```
+
