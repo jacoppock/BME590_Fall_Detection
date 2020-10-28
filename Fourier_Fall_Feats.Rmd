@@ -335,12 +335,19 @@ Test_feat_df<-feature_gen(Test_df,feats,win = 200,stp=50)
 ```{r}
 Train_feat_df<-feature_gen(Train_df,feats,win = 200,stp=50)
 ```
+
+
 ```{r}
-setwd("~/Desktop/Duke/Class/Fall 2020/Biomedical DS/BME590_Fall_Detection/")
-write_csv(Train_feat_df,'Train_feat_df.csv')
+trainRows <- sample(nrow(Train_feat_df))
+testRows <- sample(nrow(Test_feat_df))
+Train_feat_df<-Train_feat_df[trainRows,]
+Test_feat_df<-Test_feat_df[testRows,]
 ```
 
 ```{r}
+setwd("~/Desktop/Duke/Class/Fall 2020/Biomedical DS/BME590_Fall_Detection/")
+write_csv(Train_feat_df,'Train_feat_df.csv')
+write_csv(Test_feat_df,'Test_feat_df.csv')
 
 ```
 
