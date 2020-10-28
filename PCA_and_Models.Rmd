@@ -286,6 +286,10 @@ summary(svm_model)
 tuned = tune(svm, targets~., data=train_df, kernel="linear", ranges=list(cost=c(0.01,0.1,1)))
 summary(tuned)
 ```
+```{r}
+library(MLeval)
+max((svm_model$results)$ROC)
+```
 
 ```{r}
 # ROC curve is not working
