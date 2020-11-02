@@ -36,11 +36,6 @@ PCA to find top contributors
 Standardize/scale dataset before PCA
 
 ```{r}
-df <- read_csv("time_features.csv")
-targets <- df$Targets
-standardized = scale(df[,2:ncol(df)], center=TRUE, scale=TRUE)
-standardized = cbind(standardized, targets)
-df_standard = as_tibble(standardized)
 #standardized_df = standardized_df %>%
 #  mutate(target = V1) %>%
 #  select(-V1)

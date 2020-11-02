@@ -1,0 +1,81 @@
+---
+title: "Class_Balance_Models"
+author: "James A. Coppock"
+date: "10/28/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+In this document we are compiling all of our models for the class imbalance paradigm.
+
+```{r cars}
+library(tidyverse)
+library(ggplot2)
+library(lubridate)
+library(patchwork)
+library(gridExtra)
+library(psych)
+library(corrplot)
+library(ggfortify)
+library(factoextra)
+library(class) #knn
+library(gmodels) # CrossTable()
+library(caret) # creatFolds()
+library(caTools) #sample.split()
+library(ROCR) # prediction(), performance()
+library(MLeval)
+library(MLmetrics)
+library(sparseLDA)
+library(kernlab)
+set.seed(123)
+```
+
+## Load Test/Train Datasets
+set all targets to factor | Index all other columns for scaling
+
+```{r pressure, echo=FALSE}
+train_df <- read_csv("Train_feat_df.csv") # this is actually overall dataframe
+test_df <- read_csv("Test_feat_df.csv") # this is actually overall dataframe
+nFallsTrain<-sum(train_df$targets)
+nFallsTest<-sum(test_df$targets)
+train_df$Target<-as.factor(train_df$Target)
+test_df$Target<-as.factor(test_df$Target)
+nums<-unlist(lapply(train_df, is.numeric))
+
+cat('\nThe training DF is', as.character(dim(train_df)[1]),'instances long\n')
+cat('The training DF is', as.character(dim(test_df)[1]),'instances long')
+```
+
+```{r}
+names(train_df)
+```
+
+```{r}
+train_df<-scale(train_df[,nums], center = TRUE, scale = TRUE)
+test_df<-scale(test_df[,nums], center = TRUE, scale = TRUE)
+```
+
+## Build LDA Here
+
+
+```{r}
+
+```
+
+## Build SVM Here
+
+```{r}
+
+```
+
+## Build RF Here
+
+```{r}
+
+```
+
