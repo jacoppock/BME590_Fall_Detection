@@ -91,7 +91,41 @@ test_df<-scale(test_df[,nums], center = TRUE, scale = TRUE)
 ## Build SVM Here
 
 ```{r}
+build_SVM_CV2 <- function(k, train_df, test_df){
+  train_df$targets[train_df$targets == 1] <- "yes"
+  train_df$targets[train_df$targets == 0] <- "no"
+  myControl <- trainControl(
+                             method = "repeatedcv", number = k,
+                             summaryFunction = twoClassSummary,
+                             classProbs = TRUE,
+                             verboseIter = TRUE,
+                             savePredictions = TRUE
+                            )
+  myGrid <- expand.grid(                    
+                        C = c(0.25, 0.5, 0.75),
+                        degree= c(2,3,4),
+                        scale = c(0.001, 0.01, 0.1)
+                        )
+  
+  set.seed(33)
+  model <- train(targets ~., 
+                 data = train_df, 
+                 method = "svmPoly", 
+                 tuneGrid = myGrid, 
+                 metric = "ROC",
+                 trControl = myControl
+                 )
+  
+   #Check the model
+  model
+  plot(model)
+  model$bestTune
+  max((model$results)$ROC)
+  res <- evalm(model)
+  model$roc
+}
 
+build_SVM_CV2(5, train_ti, test_ti)
 ```
 
 ## Build RF Here
