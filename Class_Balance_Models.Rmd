@@ -50,9 +50,25 @@ nums<-unlist(lapply(train_df, is.numeric))
 cat('\nThe training DF is', as.character(dim(train_df)[1]),'instances long\n')
 cat('The training DF is', as.character(dim(test_df)[1]),'instances long')
 ```
+```{r}
+Falls_train_df<-train_df[train_df$Target==1,]
+noFalls_train_df<-train_df[train_df$Target==0,]
+inds<-seq(from=1,by=1,to=dim(noFalls_train_df)[1])
+noFall_ind<-sample(inds,size=dim(Falls_train_df)[1])
+noFalls_train_df<-noFalls_train_df[noFall_ind,]
+
+train_df<-rbind(noFalls_train_df,Falls_train_df)
+```
 
 ```{r}
-names(train_df)
+Falls_test_df<-test_df[test_df$Target==1,]
+noFalls_test_df<-test_df[test_df$Target==0,]
+inds<-seq(from=1,by=1,to=dim(noFalls_test_df)[1])
+noFall_ind<-sample(inds,size=dim(Falls_test_df)[1])
+noFalls_test_df<-noFalls_test_df[noFall_ind,]
+
+test_df<-rbind(noFalls_test_df,Falls_test_df)
+
 ```
 
 ```{r}
