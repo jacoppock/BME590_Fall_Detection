@@ -36,6 +36,11 @@ PCA to find top contributors
 Standardize/scale dataset before PCA
 
 ```{r}
+df <- read_csv("time_features.csv")
+targets <- df$Targets
+standardized = scale(df[,2:ncol(df)], center=TRUE, scale=TRUE)
+standardized = cbind(standardized, targets)
+df_standard = as_tibble(standardized)
 #standardized_df = standardized_df %>%
 #  mutate(target = V1) %>%
 #  select(-V1)
@@ -62,24 +67,22 @@ build_SVM_CV2 <- function(k, train_df, test_df){
                              verboseIter = TRUE,
                              savePredictions = TRUE
                             )
- # myGrid <- expand.grid(                    
-                        #C = c(0.75, 0.9,1,1.1,1.25),
-                        #sigma= c(0.01, 0.15, 0.2)
+  #myGrid <- expand.grid(                    
+                        #C = c(0.25, 0.5, 1),
+                        #degree= c(2,3,4),
+                        #scale = c(.001, .01, .1)
                         #)
   
   set.seed(33)
   model <- train(targets ~., 
                  data = train_df, 
-                 method = "svmRadial", #can test if svmLinear or svmPoly do better
+                 method = "svmPoly", 
                  #tuneGrid = myGrid, 
                  metric = "ROC",
                  trControl = myControl,
-                 tuneLength=10)
+                 tuneLength=3)
   
- test = predict(model, test_df)
- #confusionMatrix(test, test_df$targets)
-  
-   #Check the model
+  #Check the model
   model
   plot(model)
   model$bestTune
@@ -91,6 +94,8 @@ build_SVM_CV2 <- function(k, train_df, test_df){
 build_SVM_CV2(5, train_ti, test_ti)
 
 ```
+
+
 ```{r}
 build_SVM_CV2 <- function(k, train_df, test_df){
   train_df$targets[train_df$targets == 1] <- "yes"
@@ -103,22 +108,21 @@ build_SVM_CV2 <- function(k, train_df, test_df){
                              savePredictions = TRUE
                             )
   myGrid <- expand.grid(                    
-                        C = c(0.75, 0.9,1,1.1,1.25),
-                        sigma= c(0.01, 0.15, 0.2)
+                        C = c(0.25, 0.5, 0.75),
+                        degree= c(2,3,4),
+                        scale = c(0.001, 0.01, 0.1)
                         )
   
   set.seed(33)
   model <- train(targets ~., 
                  data = train_df, 
-                 method = "svmRadial", #can test if svmLinear or svmPoly do better
+                 method = "svmPoly", 
                  tuneGrid = myGrid, 
                  metric = "ROC",
-                 trControl = myControl)
+                 trControl = myControl
+                 )
   
- test = predict(model, test_df)
- #confusionMatrix(test, test_df$targets)
-  
-  =#Check the model
+   #Check the model
   model
   plot(model)
   model$bestTune
@@ -128,5 +132,6 @@ build_SVM_CV2 <- function(k, train_df, test_df){
 }
 
 build_SVM_CV2(5, train_ti, test_ti)
+
 ```
 
