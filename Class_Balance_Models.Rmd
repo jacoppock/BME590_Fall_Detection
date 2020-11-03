@@ -32,6 +32,9 @@ library(MLeval)
 library(MLmetrics)
 library(sparseLDA)
 library(kernlab)
+library(stepPlr)
+library(ROCit)
+library(plyr)
 set.seed(123)
 ```
 
@@ -46,7 +49,6 @@ nFallsTest<-sum(test_df$targets)
 train_df$Target<-as.factor(train_df$Target)
 test_df$Target<-as.factor(test_df$Target)
 nums<-unlist(lapply(train_df, is.numeric))
-
 cat('\nThe training DF is', as.character(dim(train_df)[1]),'instances long\n')
 cat('The training DF is', as.character(dim(test_df)[1]),'instances long')
 ```
@@ -56,7 +58,6 @@ noFalls_train_df<-train_df[train_df$Target==0,]
 inds<-seq(from=1,by=1,to=dim(noFalls_train_df)[1])
 noFall_ind<-sample(inds,size=dim(Falls_train_df)[1])
 noFalls_train_df<-noFalls_train_df[noFall_ind,]
-
 train_df<-rbind(noFalls_train_df,Falls_train_df)
 ```
 
@@ -66,32 +67,384 @@ noFalls_test_df<-test_df[test_df$Target==0,]
 inds<-seq(from=1,by=1,to=dim(noFalls_test_df)[1])
 noFall_ind<-sample(inds,size=dim(Falls_test_df)[1])
 noFalls_test_df<-noFalls_test_df[noFall_ind,]
-
 test_df<-rbind(noFalls_test_df,Falls_test_df)
+```
+
+```{r}
+levels(train_df$Target)[levels(train_df$Target)=="1"] <- "yes"
+levels(train_df$Target)[levels(train_df$Target)=="0"] <- "no"
+```
+
+
+```{r}
+
+trainResults <- function(model, architecture){
+  for_lift <- data.frame(Class = model$pred$obs, rf = model$pred$R, resample = model$pred$Resample)
+  lift_df <-  data.frame()
+  for (fold in unique(for_lift$resample)) {
+    fold_df <- dplyr::filter(for_lift, resample == fold)
+    lift_obj_data <- lift(Class ~ rf, data = fold_df, class = "R")$data
+    lift_obj_data$fold = fold
+    lift_df = rbind(lift_df, lift_obj_data)
+  }
+  lift_obj <- lift(Class ~ rf, data = for_lift, class = "R")
+  library(plyr)
+  accuracy <- ddply(model$pred, "Resample", summarise,
+        accuracy = Accuracy(pred, obs))
+  res <- evalm(list(model_lr),gnames=c(architecture))  
+  return(accuracy)
+}
+
+errorRate <- function(model, test){
+  1-mean(model==test)
+}
+
+```
+
+
+## Build LR Here
+
+
+```{r}
+
+k = 5
+myControl_lr <- trainControl(
+                             method = "repeatedcv", number = k,
+                             summaryFunction = twoClassSummary,
+                             classProbs = TRUE,
+                             verboseIter = TRUE,
+                             savePredictions = TRUE,
+                             allowParallel = FALSE
+                            )
+myGrid_lr <-  expand.grid(.lambda=10^seq(-3, 3, length = 100), 
+                          .cp="bic")
+model_lr <- train(Target ~., 
+                 data = train_df, 
+                 method = "plr",
+                 tuneGrid = myGrid_lr, 
+                 metric = "ROC",
+                 trControl = myControl_lr,
+                 preProcess = c("center", "scale"))
+
+model_lr
+
+```
+
+See model summary
+
+```{r}
+
+summary(model_lr)
+max((model_lr$results)$ROC)
+
+```
+
+See tuning results
+
+```{r}
+
+plot(model_lr)
+
+trellis.par.set(caretTheme())
+densityplot(model_lr, pch = "|")
+
+```
+
+
+```{r}
+
+lr_train_results <- trainResults(model_lr, "Logistic Regression")
+lr_train_results
+cat("5-fold train accuracy: ", mean(lr_train_results[,2]))
 
 ```
 
 ```{r}
-train_df<-scale(train_df[,nums], center = TRUE, scale = TRUE)
-test_df<-scale(test_df[,nums], center = TRUE, scale = TRUE)
+library(ROCit)
+prediction_lr <- predict(model_lr, test_df, type = "prob")
+ROCit_lr <- rocit(score=prediction_lr[,2],class=test_df$Target)
+plot(ROCit_lr, legend = TRUE, YIndex = FALSE, values = TRUE)
+summary(ROCit_lr)
+
+lr_binary <- ifelse(prediction_lr[,2]>0.5, 1, 0)
+lr_error <- errorRate(lr_binary, test_df$Target)
+cat("\nTest accuracy:   ", 1-lr_error,
+    "\nTest error rate: ", lr_error,
+    "\nTest AUC:        ", ROCit_lr$AUC)
+
+confusionMatrix(table(lr_binary, test_df$Target), positive="1")
 ```
 
 ## Build LDA Here
 
+```{r}
+
+k = 5
+myControl_lda <- trainControl(
+                             method = "repeatedcv", number = k,
+                             summaryFunction = twoClassSummary,
+                             classProbs = TRUE,
+                             verboseIter = TRUE,
+                             savePredictions = TRUE,
+                             allowParallel = TRUE
+                            )
+myGrid_lda <-  expand.grid(.NumVars = c(2:50), 
+                           .lambda = c(0.01, 0.1, 1, 10))
+model_lda <- train(Target ~., 
+                 data = train_df, 
+                 method = "sparseLDA",
+                 tuneGrid = myGrid_lda, 
+                 metric = "ROC",
+                 trControl = myControl_lda,
+                 preProcess = c("center", "scale"),
+                 verbose = TRUE)
+
+model_lda
+
+```
+
+See model summary
 
 ```{r}
 
+summary(model_lda)
+max((model_lda$results)$ROC)
+
+```
+
+See tuning results
+
+```{r}
+
+plot(model_lda)
+
+trellis.par.set(caretTheme())
+densityplot(model_lda, pch = "|")
+
+trellis.par.set(caretTheme())
+plot(model_lda, metric = "ROC", plotType = "level",
+     scales = list(x = list(rot = 90)))
+
+```
+
+```{r}
+
+lda_train_results <- trainResults(model_lda, "LDA")
+lda_train_results
+cat("5-fold train accuracy: ", mean(lda_train_results[,2]))
+
+```
+
+```{r}
+library(ROCit)
+prediction_lda <- predict(model_lda, test_df, type = "prob")
+ROCit_lda <- rocit(score=prediction_lda[,2],class=test_df$Target)
+plot(ROCit_lda, legend = TRUE, YIndex = FALSE, values = TRUE)
+summary(ROCit_lda)
+
+lda_binary <- ifelse(prediction_lda[,2]>0.5, 1, 0)
+lda_error <- errorRate(lda_binary, test_df$Target)
+cat("\nTest accuracy:   ", 1-lda_error,
+    "\nTest error rate: ", lda_error,
+    "\nTest AUC:        ", ROCit_lda$AUC)
+
+confusionMatrix(table(lda_binary, test_df$Target), positive="1")
 ```
 
 ## Build SVM Here
 
 ```{r}
 
+k = 5
+myControl_svm <- trainControl(
+                             method = "repeatedcv", number = k,
+                             summaryFunction = twoClassSummary,
+                             classProbs = TRUE,
+                             verboseIter = TRUE,
+                             savePredictions = TRUE
+                            )
+myGrid_svm <- expand.grid(                    
+                          C = c(0.25, 0.5, 0.75),
+                          degree= c(2,3,4),
+                          scale = c(0.001, 0.01, 0.1)
+                        )
+  
+model_svm <- train(Target ~., 
+                   data = train_df, 
+                   method = "svmPoly", 
+                   tuneGrid = myGrid_svm, 
+                   metric = "ROC",
+                   trControl = myControl_svm,
+                   preProcess = c("center", "scale"),
+                   verbose = TRUE
+              )
+model_svm
+
+```
+
+See model summary
+
+```{r}
+
+summary(model_svm)
+max((model_svm$results)$ROC)
+
+```
+
+See tuning results
+
+```{r}
+
+plot(model_svm)
+
+trellis.par.set(caretTheme())
+densityplot(model_svm, pch = "|")
+
+```
+
+
+```{r}
+
+svm_train_results <- trainResults(model_svm, "SVM")
+svm_train_results
+cat("5-fold train accuracy: ", mean(svm_train_results[,2]))
+
+```
+
+```{r}
+library(ROCit)
+prediction_svm <- predict(model_svm, test_df, type = "prob")
+ROCit_svm <- rocit(score=prediction_svm[,2],class=test_df$Target)
+plot(ROCit_svm, legend = TRUE, YIndex = FALSE, values = TRUE)
+summary(ROCit_svm)
+
+svm_binary <- ifelse(prediction_svm[,2]>0.5, 1, 0)
+svm_error <- errorRate(svm_binary, test_df$Target)
+cat("\nTest accuracy:   ", 1-svm_error,
+    "\nTest error rate: ", svm_error,
+    "\nTest AUC:        ", ROCit_svm$AUC)
+
+confusionMatrix(table(svm_binary, test_df$Target), positive="1")
 ```
 
 ## Build RF Here
 
 ```{r}
 
+k = 5
+
+library(randomForest)
+library(mlbench)
+library(e1071)
+
+mtry <- sqrt(ncol(train_df)-1)
+myControl_rf <- trainControl(
+                             method = "repeatedcv", number = k,
+                             summaryFunction = twoClassSummary,
+                             classProbs = TRUE,
+                             verboseIter = TRUE,
+                             savePredictions = TRUE
+                            )
+myGrid_rf <- expand.grid(.mtry=c(10:15), .ntree=c(1000,1500,2000,2500))
+model_rf <- train(Target ~., 
+                 data = train_df, 
+                 method = customRF,
+                 tuneGrid = myGrid_rf, 
+                 metric = "ROC",
+                 trControl = myControl_rf,
+                 preProcess = c("center", "scale"))
+
+model_rf
+
 ```
 
+See model summary
+
+```{r}
+
+summary(model_rf)
+max((model_rf$results)$ROC)
+
+```
+
+See tuning results
+
+```{r}
+
+plot(model_rf)
+
+trellis.par.set(caretTheme())
+plot(model_rf, metric = "ROC", plotType = "level",
+     scales = list(x = list(rot = 90)))
+
+```
+
+
+```{r}
+
+rf_train_results <- trainResults(model_rf, "Random Forest")
+rf_train_results
+cat("5-fold train accuracy: ", mean(rf_train_results[,2]))
+
+```
+
+```{r}
+library(ROCit)
+prediction_rf <- predict(model_rf, test_df, type = "prob")
+ROCit_rf <- rocit(score=prediction_rf[,2],class=test_df$Target)
+plot(ROCit_rf, legend = TRUE, YIndex = FALSE, values = TRUE)
+summary(ROCit_rf)
+
+rf_binary <- ifelse(prediction_rf[,2]>0.5, 1, 0)
+rf_error <- errorRate(rf_binary, test_df$Target)
+cat("\nTest accuracy:   ", 1-rf_error,
+    "\nTest error rate: ", rf_error,
+    "\nTest AUC:        ", ROCit_rf$AUC)
+
+confusionMatrix(table(rf_binary, test_df$Target), positive="1")
+```
+
+
+## Compare Models
+
+```{r}
+
+resamps <- resamples(list(LR = model_lr,
+                          LDA = model_lda,
+                          SVM = model_svm,
+                          RF = model_rf))
+summary(resamps)
+
+```
+
+```{r}
+
+theme1 <- trellis.par.get()
+theme1$plot.symbol$col = rgb(.2, .2, .2, .4)
+theme1$plot.symbol$pch = 16
+theme1$plot.line$col = rgb(1, 0, 0, .7)
+theme1$plot.line$lwd <- 2
+trellis.par.set(theme1)
+bwplot(resamps, layout = c(3, 1))
+
+```
+
+```{r}
+
+trellis.par.set(caretTheme())
+dotplot(resamps, metric = "ROC")
+
+```
+
+```{r}
+
+trellis.par.set(theme1)
+xyplot(resamps, what = "BlandAltman")
+
+```
+
+```{r}
+
+splom(resamps)
+
+```
