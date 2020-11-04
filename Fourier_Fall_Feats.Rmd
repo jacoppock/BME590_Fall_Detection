@@ -105,6 +105,7 @@ noFalls_test <- noFalls_df[-nofalls_train_ind, ]
 Train_df <- rbind(noFalls_train,Falls_train)
 Test_df <- rbind(noFalls_test,Falls_test)
 
+
 ```
 
 TRAIN BUTTERWORTH
@@ -308,7 +309,7 @@ target<-SlidingWindow("max", df_in$Target, window, step)
 df_out<-data.frame(Target=target)
 
 df_in$Target<-as.logical(df_in$Target)
-col_inds<-which(unlist(lapply(df_in, is.numeric)))
+c
 count=2
 for (i in 1:length(feats)){
   for (j in 1:length(col_inds)){
@@ -356,7 +357,18 @@ write_csv(Test_feat_df,'Test_feat_df.csv')
 
 
 ```{r, fig.width=10, fig.height=10}
-# pairs(fft_df)
+smp_size<- floor(nrow(Falls_train))
+falls_aug_train_ind <- sample(seq_len(nrow(noFalls_df)), size = smp_size)
+noFalls_aug_train <- noFalls_df[nofalls_train_ind, ]
+
+Fs <- 100
+win <- 2
+stp <- 0.5
+window <-win*Fs
+step <- stp*Fs
+feats<-c('entropy','mean_energy','total_energy','rms','min','max','q1','q3','sd','skewness','kurtosis','median')
+Test_feat_df<-feature_gen(Test_df,feats,win = 200,stp=50)
+
 
 ```
 ```{r}

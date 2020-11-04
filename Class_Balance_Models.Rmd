@@ -50,7 +50,7 @@ train_df$Target<-as.factor(train_df$Target)
 test_df$Target<-as.factor(test_df$Target)
 nums<-unlist(lapply(train_df, is.numeric))
 cat('\nThe training DF is', as.character(dim(train_df)[1]),'instances long\n')
-cat('The training DF is', as.character(dim(test_df)[1]),'instances long')
+cat('The testing DF is', as.character(dim(test_df)[1]),'instances long')
 ```
 ```{r}
 Falls_train_df<-train_df[train_df$Target==1,]
@@ -73,6 +73,25 @@ test_df<-rbind(noFalls_test_df,Falls_test_df)
 ```{r}
 levels(train_df$Target)[levels(train_df$Target)=="1"] <- "yes"
 levels(train_df$Target)[levels(train_df$Target)=="0"] <- "no"
+
+```
+
+```{r}
+col_num <- unlist(lapply(train_df, is.numeric))  
+train_x<-scale(train_df[,col_num])
+test_x<-scale(test_df[,col_num])
+Target<-train_df$Target
+train_df<-cbind(Target,as.data.frame(train_x))
+Target<-test_df$Target
+test_df<-cbind(Target,as.data.frame(test_x))
+```
+
+```{r}
+rows <- sample(nrow(train_df))
+train_df <- train_df[rows, ]
+
+rows <- sample(nrow(test_df))
+test_df <- test_df[rows, ]
 ```
 
 
@@ -184,7 +203,7 @@ myControl_lda <- trainControl(
                              method = "repeatedcv", number = k,
                              summaryFunction = twoClassSummary,
                              classProbs = TRUE,
-                             verboseIter = TRUE,
+                             verboseIter = FALSE,
                              savePredictions = TRUE,
                              allowParallel = TRUE
                             )
@@ -197,7 +216,7 @@ model_lda <- train(Target ~.,
                  metric = "ROC",
                  trControl = myControl_lda,
                  preProcess = c("center", "scale"),
-                 verbose = TRUE)
+                 verbose = FALSE)
 
 model_lda
 
