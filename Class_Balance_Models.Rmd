@@ -35,6 +35,9 @@ library(kernlab)
 library(stepPlr)
 library(ROCit)
 library(plyr)
+library(e1071)
+library(glmnet)
+library(randomForest)
 set.seed(123)
 ```
 
@@ -50,7 +53,7 @@ train_df$Target<-as.factor(train_df$Target)
 test_df$Target<-as.factor(test_df$Target)
 nums<-unlist(lapply(train_df, is.numeric))
 cat('\nThe training DF is', as.character(dim(train_df)[1]),'instances long\n')
-cat('The testing DF is', as.character(dim(test_df)[1]),'instances long')
+cat('The training DF is', as.character(dim(test_df)[1]),'instances long')
 ```
 ```{r}
 Falls_train_df<-train_df[train_df$Target==1,]
@@ -70,28 +73,12 @@ noFalls_test_df<-noFalls_test_df[noFall_ind,]
 test_df<-rbind(noFalls_test_df,Falls_test_df)
 ```
 
-```{r}
-levels(train_df$Target)[levels(train_df$Target)=="1"] <- "yes"
-levels(train_df$Target)[levels(train_df$Target)=="0"] <- "no"
-
-```
 
 ```{r}
-col_num <- unlist(lapply(train_df, is.numeric))  
-train_x<-scale(train_df[,col_num])
-test_x<-scale(test_df[,col_num])
-Target<-train_df$Target
-train_df<-cbind(Target,as.data.frame(train_x))
-Target<-test_df$Target
-test_df<-cbind(Target,as.data.frame(test_x))
-```
 
-```{r}
-rows <- sample(nrow(train_df))
-train_df <- train_df[rows, ]
+train_df[, c(2):c(ncol(train_df))] <- scale(train_df[, c(2):c(ncol(train_df))], center=TRUE, scale=TRUE)
+test_df[, c(2):c(ncol(test_df))] <- scale(test_df[, c(2):c(ncol(test_df))], center=TRUE, scale=TRUE)
 
-rows <- sample(nrow(test_df))
-test_df <- test_df[rows, ]
 ```
 
 
@@ -123,6 +110,182 @@ errorRate <- function(model, test){
 
 ## Build LR Here
 
+```{r}
+train_x <- model.matrix(Target~., train_df)
+train_y <- train_df$Target
+test_x <- model.matrix(Target~., test_df)
+test_y <- test_df$Target
+model_rr <- cv.glmnet(train_x, train_y, alpha=0, lambda=10^seq(-5,5, length=200), 
+                         type.measure="class", nfolds=10, family="binomial")
+plot(model_rr)
+
+```
+```{r}
+model_rr$lambda
+```
+
+
+```{r}
+
+coef(model_rr, s = 1e8)
+
+```
+
+```{r}
+
+train_perf_rr <- predict(model_rr, s = 1e100, 
+                         newx = train_x, type = "response")
+ROC_train_rr <- rocit(score=as.vector(train_rr), class=train_y)
+plot(ROC_train_rr, legend = TRUE, YIndex = FALSE, values = TRUE)
+summary(ROC_train_rr)
+
+rr_train_binary <- ifelse(train_perf_rr>0.5, 1, 0)
+confusionMatrix(table(rr_train_binary, train_df$Target), positive="1")
+
+```
+
+
+```{r}
+
+test_perf_rr <- predict(model_rr, s = 1e100, 
+                         newx = test_x, type = "response")
+ROC_test_rr <- rocit(score=as.vector(test_perf_rr), class=test_y)
+plot(ROC_test_rr, legend = TRUE, YIndex = FALSE, values = TRUE)
+summary(ROC_test_rr)
+
+rr_test_binary <- ifelse(test_perf_rr>0.5, 1, 0)
+confusionMatrix(table(rr_test_binary, test_df$Target), positive="1")
+```
+
+```{r}
+
+rr_train_error <- errorRate(rr_train_binary, train_y)
+cat("\nTrain accuracy:   ", 1-rr_train_error,
+    "\nTrain error rate: ", rr_train_error,
+    "\nTrain AUC:        ", ROC_train_rr$AUC)
+
+rr_test_error <- errorRate(rr_test_binary, test_y)
+cat("\nTest accuracy:    ", 1-rr_test_error,
+    "\nTest error rate:  ", rr_test_error,
+    "\nTest AUC:         ", ROC_test_rr$AUC)
+
+```
+
+## Build SVM
+
+```{r}
+
+model_svm <- tune.svm(Target~., data = train_df, 
+                      cost = 2e-2, 
+                      kernel = "poly",tunecontrol=tune.control(cross=10),
+                      probability=TRUE)
+summary(model_svm)
+plot(model_svm)
+
+```
+
+```{r}
+
+model_svm$performances
+train_perf_svm <- predict(model_svm$best.model, train_df[,1:ncol(train_df)], probability=TRUE)
+predictions_train_svm <- data.frame(attr(train_perf_svm, "probabilities"))[,2]
+ROC_train_svm <- rocit(score=as.vector(predictions_train_svm), class=train_y)
+plot(ROC_train_svm, legend = TRUE, YIndex = FALSE, values = TRUE)
+summary(ROC_train_svm)
+
+svm_train_binary <- ifelse(predictions_train_svm>0.5, 1, 0)
+confusionMatrix(table(svm_train_binary, train_df$Target), positive="1")
+
+```
+
+```{r}
+
+test_perf_svm <- predict(model_svm$best.model, test_df[,1:ncol(test_df)], probability=TRUE)
+predictions_test_svm <- data.frame(attr(test_perf_svm, "probabilities"))[,2]
+ROC_test_svm <- rocit(score=as.vector(predictions_test_svm), class=test_y)
+plot(ROC_test_svm, legend = TRUE, YIndex = FALSE, values = TRUE)
+summary(ROC_test_svm)
+
+svm_test_binary <- ifelse(predictions_test_svm>0.5, 1, 0)
+confusionMatrix(table(svm_test_binary, test_df$Target), positive="1")
+```
+
+```{r}
+
+svm_train_error <- errorRate(svm_train_binary, train_y)
+cat("\nTrain accuracy:   ", 1-svm_train_error,
+    "\nTrain error rate: ", svm_train_error,
+    "\nTrain AUC:        ", ROC_train_svm$AUC)
+
+svm_test_error <- errorRate(svm_test_binary, test_y)
+cat("\nTest accuracy:    ", 1-svm_test_error,
+    "\nTest error rate:  ", svm_test_error,
+    "\nTest AUC:         ", ROC_test_svm$AUC)
+
+```
+
+## Build Random Forest
+
+```{r}
+
+model_rf <- tune.randomForest(Target~., data = train_df, 
+                      mtry = sqrt(ncol(train_df)-1),
+                      tunecontrol=tune.control(cross=10),
+                      ntree = c(1,10,100,1000,10000), probability=TRUE, 
+                      importance=TRUE)
+summary(model_rf)
+
+```
+
+```{r}
+
+model_rf$performances
+plot(model_rf$performances[,2],model_rf$performances[,3],xlab="ntree", ylab="Error", log="x")
+
+```
+
+```{r}
+
+model_rf$performances
+train_perf_rf <- predict(model_rf$best.model, train_df[,1:ncol(train_df)], type="prob")
+predictions_train_rf <- data.frame(train_perf_rf)[,2]
+ROC_train_rf <- rocit(score=as.vector(predictions_train_rf), class=train_y)
+plot(ROC_train_rf, legend = TRUE, YIndex = FALSE, values = TRUE)
+summary(ROC_train_rf)
+
+rf_train_binary <- ifelse(predictions_train_rf>0.5, 1, 0)
+confusionMatrix(table(rf_train_binary, train_df$Target), positive="1")
+
+```
+
+```{r}
+
+test_perf_rf <- predict(model_rf$best.model, test_df[,1:ncol(test_df)], type="prob")
+predictions_test_rf <- data.frame(test_perf_rf)[,2]
+ROC_test_rf <- rocit(score=as.vector(predictions_test_rf), class=test_y)
+plot(ROC_test_rf, legend = TRUE, YIndex = FALSE, values = TRUE)
+summary(ROC_test_rf)
+
+rf_test_binary <- ifelse(predictions_test_rf>0.5, 1, 0)
+confusionMatrix(table(rf_test_binary, test_df$Target), positive="1")
+```
+
+```{r}
+
+rf_train_error <- errorRate(rf_train_binary, train_y)
+cat("\nTrain accuracy:   ", 1-rf_train_error,
+    "\nTrain error rate: ", rf_train_error,
+    "\nTrain AUC:        ", ROC_train_rf$AUC)
+
+rf_test_error <- errorRate(rf_test_binary, test_y)
+cat("\nTest accuracy:    ", 1-rf_test_error,
+    "\nTest error rate:  ", rf_test_error,
+    "\nTest AUC:         ", ROC_test_rf$AUC)
+
+```
+
+
+## Ignore models below
 
 ```{r}
 
@@ -131,12 +294,12 @@ myControl_lr <- trainControl(
                              method = "repeatedcv", number = k,
                              summaryFunction = twoClassSummary,
                              classProbs = TRUE,
-                             verboseIter = TRUE,
+                             verboseIter = FALSE,
                              savePredictions = TRUE,
                              allowParallel = FALSE
                             )
-myGrid_lr <-  expand.grid(.lambda=10^seq(-3, 3, length = 100), 
-                          .cp="bic")
+myGrid_lr <-  expand.grid(.lambda=1e-5, 
+                         .cp="bic")
 model_lr <- train(Target ~., 
                  data = train_df, 
                  method = "plr",
@@ -208,7 +371,8 @@ myControl_lda <- trainControl(
                              allowParallel = TRUE
                             )
 myGrid_lda <-  expand.grid(.NumVars = c(2:50), 
-                           .lambda = c(0.01, 0.1, 1, 10))
+                           .lambda = c(0.0001, 0.001, 0.01, 0.1, 1, 10, 100, 1000, 10000, 100000)
+                           )
 model_lda <- train(Target ~., 
                  data = train_df, 
                  method = "sparseLDA",
@@ -279,7 +443,7 @@ myControl_svm <- trainControl(
                              method = "repeatedcv", number = k,
                              summaryFunction = twoClassSummary,
                              classProbs = TRUE,
-                             verboseIter = TRUE,
+                             verboseIter = FALSE,
                              savePredictions = TRUE
                             )
 myGrid_svm <- expand.grid(                    
@@ -295,7 +459,7 @@ model_svm <- train(Target ~.,
                    metric = "ROC",
                    trControl = myControl_svm,
                    preProcess = c("center", "scale"),
-                   verbose = TRUE
+                   verbose = FALSE
               )
 model_svm
 
@@ -350,6 +514,37 @@ confusionMatrix(table(svm_binary, test_df$Target), positive="1")
 
 ```{r}
 
+customRF <- list(type = "Classification",
+                 library = "randomForest",
+                 loop = NULL)
+
+customRF$parameters <- data.frame(parameter = c("mtry", "ntree"),
+                                  class = rep("numeric", 2),
+                                  label = c("mtry", "ntree"))
+
+customRF$grid <- function(x, y, len = NULL, search = "grid") {}
+
+customRF$fit <- function(x, y, wts, param, lev, last, weights, classProbs) {
+  randomForest(x, y,
+               mtry = param$mtry,
+               ntree=param$ntree)
+}
+
+#Predict label
+customRF$predict <- function(modelFit, newdata, preProc = NULL, submodels = NULL)
+   predict(modelFit, newdata)
+
+#Predict prob
+customRF$prob <- function(modelFit, newdata, preProc = NULL, submodels = NULL)
+   predict(modelFit, newdata, type = "prob")
+
+customRF$sort <- function(x) x[order(x[,1]),]
+customRF$levels <- function(x) x$classes
+
+```
+
+```{r}
+
 k = 5
 
 library(randomForest)
@@ -361,7 +556,7 @@ myControl_rf <- trainControl(
                              method = "repeatedcv", number = k,
                              summaryFunction = twoClassSummary,
                              classProbs = TRUE,
-                             verboseIter = TRUE,
+                             verboseIter = FALSE,
                              savePredictions = TRUE
                             )
 myGrid_rf <- expand.grid(.mtry=c(10:15), .ntree=c(1000,1500,2000,2500))
