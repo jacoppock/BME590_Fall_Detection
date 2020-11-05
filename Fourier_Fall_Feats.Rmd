@@ -48,45 +48,45 @@ rm(Falls_df2)
 
 ```{r}
 cat('The Number of Falls in this Set of Data is:',(sum(Data$Target)),'\n')
-Fs <- 100
-win <- 2
-stp <- 0.5
-window <-win*Fs
-step <- stp*Fs
+```
 
+
+TRAIN BUTTERWORTH
+```{r}
+bf <- signal::butter(4, 1/49, type="low")
+Time <- Data$Time
+accX <- signal::filtfilt(bf, Data$accX)
+accY <- signal::filtfilt(bf, Data$accY)
+accZ <- signal::filtfilt(bf, Data$accZ)
+  
+angX <- signal::filtfilt(bf, Data$angX)
+angY <- signal::filtfilt(bf, Data$angY)
+angZ <- signal::filtfilt(bf, Data$angZ)
+  
+magX <- signal::filtfilt(bf, Data$maxX)
+magY <- signal::filtfilt(bf, Data$magY)
+magZ <- signal::filtfilt(bf, Data$magZ)
+
+Target <- Data$Target
+```
+
+```{r}
+Acc<-sqrt(accX^2+ accY^2+ accZ^2)
+Ang<-sqrt(angX^2+ angY^2+ angZ^2)
+MagF<-sqrt(magX^2+ magY^2+ magZ^2)
+Data<-data.frame(Target,Acc,Ang,MagF)
+```
+
+TEST BUTTERWORTH
+```{r}
+rm(accX); rm(accY);rm(accZ); rm(angX); rm(angY);rm(angZ); rm(magX); rm(magY);rm(magZ); 
+```
+
+Define SWDFT
+
+```{r}
 Falls_df <- subset(Data, Target==1)
 noFalls_df<- subset(Data, Target==0)
-
-```
-
-Perform Fourier Transform on Initial Dataframe and Plot Results
-
-```{r}
-# 
-# plot.frequency.spectrum <- function(X.k, title,xlimits=c(0,length(X.k))) {
-#   plot.data  <- cbind(0:(length(X.k)-1), Mod(X.k))
-#   plot.data[2:length(X.k),2] <- 2*plot.data[2:length(X.k),2] 
-#   plot(plot.data, t="h", lwd=2, main=title, 
-#        xlab="Frequency (Hz)", ylab="Strength",
-#        xlim=xlimits, ylim=c(0,max(Mod(plot.data[,2]))))
-# }
-# 
-# par(mfrow=c(3,3))
-# plot.frequency.spectrum(fft(Data_EDA$accX), "Acceleration X",xlimits=c(0,50))
-# plot.frequency.spectrum(fft(Data_EDA$accY), "Acceleration Y",xlimits=c(0,50))
-# plot.frequency.spectrum(fft(Data_EDA$accZ), "Acceleration Z",xlimits=c(0,50))
-# 
-# plot.frequency.spectrum(fft(Data_EDA$angX), "Angular Rotation X",xlimits=c(0,50))
-# plot.frequency.spectrum(fft(Data_EDA$angY), "Angular Rotation Y",xlimits=c(0,50))
-# plot.frequency.spectrum(fft(Data_EDA$angZ), "Angular Rotation Z",xlimits=c(0,50))
-# 
-# plot.frequency.spectrum(fft(Data_EDA$maxX), "Magnetic Flux Density X",xlimits=c(0,50))
-# plot.frequency.spectrum(fft(Data_EDA$magY), "Magnetic Flux Density Y",xlimits=c(0,50))
-# plot.frequency.spectrum(fft(Data_EDA$magZ), "Magnetic Flux Density Z",xlimits=c(0,50))
-
-```
-
-```{r}
 set.seed(97)
 ## 80% of the sample size
 smp_size <- floor(0.80 * nrow(Falls_df))
@@ -104,55 +104,6 @@ noFalls_test <- noFalls_df[-nofalls_train_ind, ]
 
 Train_df <- rbind(noFalls_train,Falls_train)
 Test_df <- rbind(noFalls_test,Falls_test)
-
-
-```
-
-TRAIN BUTTERWORTH
-```{r}
-bf <- signal::butter(4, 1/49, type="low")
-Time <- Train_df$Time
-accX <- signal::filtfilt(bf, Train_df$accX)
-accY <- signal::filtfilt(bf, Train_df$accY)
-accZ <- signal::filtfilt(bf, Train_df$accZ)
-  
-angX <- signal::filtfilt(bf, Train_df$angX)
-angY <- signal::filtfilt(bf, Train_df$angY)
-angZ <- signal::filtfilt(bf, Train_df$angZ)
-  
-maxX <- signal::filtfilt(bf, Train_df$maxX)
-magY <- signal::filtfilt(bf, Train_df$magY)
-magZ <- signal::filtfilt(bf, Train_df$magZ)
-
-Target <- Train_df$Target
-
-Train_df <- data.frame( accX, accY, accZ, angX, angY, angZ, maxX, magY, magZ, Target)
-str(Train_df)
-```
-
-TEST BUTTERWORTH
-```{r}
-Time <- Test_df$Time
-accX <- signal::filtfilt(bf, Test_df$accX)
-accY <- signal::filtfilt(bf, Test_df$accY)
-accZ <- signal::filtfilt(bf, Test_df$accZ)
-  
-angX <- signal::filtfilt(bf, Test_df$angX)
-angY <- signal::filtfilt(bf, Test_df$angY)
-angZ <- signal::filtfilt(bf, Test_df$angZ)
-  
-maxX <- signal::filtfilt(bf, Test_df$maxX)
-magY <- signal::filtfilt(bf, Test_df$magY)
-magZ <- signal::filtfilt(bf, Test_df$magZ)
-
-Target <- Test_df$Target
-
-Test_df <- data.frame(accX, accY, accZ, angX, angY, angZ, maxX, magY, magZ, Target)
-```
-
-Define SWDFT
-
-```{r}
 ```
 
 Try using SWDFT
@@ -264,18 +215,14 @@ spec_centroid <- function(a,Fs=100){
 
 ```
 
-```{r}
-# z<-(slide(Test_df[,1],'entropy',.before = 100,.after = 100,.step = 50))
-# mylist<-z[-which(sapply(z, is.null))]
-```
 
 ```{r}
 # is.numeric(Train_df[,names(Train_df)])
 
 
-feature_gen<- function(df_in,feats,stp=50,win=200){
+feature_gen<- function(df_in,feats, window=100,step=10){
 name<-c('Target')
-target<-SlidingWindow("max", df_in$Target, window, step)
+target<-SlidingWindow("max", df_in$Target, window,step)
 # trgt<-slide(df_in[,1],max,.before =100 ,.after = 100,.step = 100)
 # target<-length(trgt[-which(sapply(trgt, is.null))])
 
@@ -285,13 +232,13 @@ df_in$Target<-as.logical(df_in$Target)
 col_inds<-which(unlist(lapply(df_in, is.numeric)))
 count=2
 for (i in 1:length(feats)){
-  for (j in 1:length(col_inds)){
+  for (j in col_inds){
   name[count]<-paste(names(df_in)[j],'_',feats[i],sep = '')
   count<-count+1
   cat(name[count],' ')
   # df<-slide(df_in[,j],feats[i],.before =100 ,.after = 100,.step = 100)
   # df_mid<-df[-which(sapply(df, is.null))]
-  df<-as.data.frame(SlidingWindow(feats[i], df_in[,j], window, step))
+  df<-as.data.frame(SlidingWindow(feats[i], df_in[,j],window,step))
   df_out<-cbind(df_out,df)
 }}  
 names(df_out)<-name
@@ -302,40 +249,24 @@ return(df_out)}
 ```{r}
 df_in<-Test_df
 feats<-c('entropy','mean_energy','total_energy','roll_off','spec_centroid','min','max','q1','q3','sd','skewness','kurtosis','median')
-target<-SlidingWindow("max", df_in$Target, window, step)
-# trgt<-slide(df_in[,1],max,.before =100 ,.after = 100,.step = 100)
-# target<-length(trgt[-which(sapply(trgt, is.null))])
-
-df_out<-data.frame(Target=target)
-
-df_in$Target<-as.logical(df_in$Target)
-c
-count=2
-for (i in 1:length(feats)){
-  for (j in 1:length(col_inds)){
-  name[count]<-paste(names(df_in)[j],'_',feats[i],sep = '')
-  count<-count+1
-  cat(name[count],' ')
-  # df<-slide(df_in[,j],feats[i],.before =100 ,.after = 100,.step = 100)
-  # df_mid<-df[-which(sapply(df, is.null))]
-  df<-as.data.frame(SlidingWindow(feats[i], df_in[,j], window, step))
-  df_out<-cbind(df_out,df)
-}}  names(df_out)<-name
 ```
 
 ```{r}
 Fs <- 100
-win <- 2
-stp <- 0.5
+win <- 1
+stp <- 0.2
 window <-win*Fs
 step <- stp*Fs
-feats<-c('entropy','mean_energy','total_energy','rms','min','max','q1','q3','sd','skewness','kurtosis','median')
-Test_feat_df<-feature_gen(Test_df,feats,win = 200,stp=50)
+# Test_df$Target<-as.logical(Test_df$Target)
+feats<-c('entropy','mean_energy','total_energy','roll_off','spec_centroid','min','max','q1','q3','sd','skewness','kurtosis','median')
+Test_feat_df<-feature_gen(Test_df,feats,window = window,step =step)
 # Train_feat_df<-feature_gen(Train_df,feats,win = 200,stp=40)
 ```
 ```{r}
-Train_feat_df<-feature_gen(Train_df,feats,win = 200,stp=50)
+Train_feat_df<-feature_gen(Train_df,feats,window = window,step =step)
 ```
+
+
 
 
 ```{r}
@@ -347,8 +278,8 @@ Test_feat_df<-Test_feat_df[testRows,]
 
 ```{r}
 setwd("~/Desktop/Duke/Class/Fall 2020/Biomedical DS/BME590_Fall_Detection/")
-write_csv(Train_feat_df,'Train_feat_df.csv')
-write_csv(Test_feat_df,'Test_feat_df.csv')
+write.csv(Train_feat_df,'Train_RMS_df.csv')
+write.csv(Test_feat_df,'Test_RMS_df.csv')
 
 ```
 
