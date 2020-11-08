@@ -176,8 +176,9 @@ cat("\nTest accuracy:    ", 1-rr_test_error,
 ```{r}
 
 model_svm <- tune.svm(Target~., data = train_df, 
-                      cost = 10^seq(-3,3, length=10), 
-                      kernel = "poly",tunecontrol=tune.control(cross=10),
+                      type = 'C-classification',
+                      cost = 10^seq(-3,3, length=10),
+                      kernel = "linear",tunecontrol=tune.control(cross=10),
                       probability=TRUE)
 summary(model_svm)
 plot(model_svm)
