@@ -45,6 +45,7 @@ set.seed(123)
 set all targets to factor | Index all other columns for scaling
 
 ```{r pressure, echo=FALSE}
+set.seed(123)
 train_df <- read_csv("Train_feat_df.csv") # this is actually overall dataframe
 test_df <- read_csv("Test_feat_df.csv") # this is actually overall dataframe
 nFallsTrain<-sum(train_df$targets)
@@ -56,6 +57,7 @@ cat('\nThe training DF is', as.character(dim(train_df)[1]),'instances long\n')
 cat('The training DF is', as.character(dim(test_df)[1]),'instances long')
 ```
 ```{r}
+set.seed(123)
 Falls_train_df<-train_df[train_df$Target==1,]
 noFalls_train_df<-train_df[train_df$Target==0,]
 inds<-seq(from=1,by=1,to=dim(noFalls_train_df)[1])
@@ -65,6 +67,7 @@ train_df<-rbind(noFalls_train_df,Falls_train_df)
 ```
 
 ```{r}
+set.seed(123)
 Falls_test_df<-test_df[test_df$Target==1,]
 noFalls_test_df<-test_df[test_df$Target==0,]
 inds<-seq(from=1,by=1,to=dim(noFalls_test_df)[1])
@@ -75,7 +78,7 @@ test_df<-rbind(noFalls_test_df,Falls_test_df)
 
 
 ```{r}
-
+set.seed(123)
 train_df[, c(2):c(ncol(train_df))] <- scale(train_df[, c(2):c(ncol(train_df))], center=TRUE, scale=TRUE)
 test_df[, c(2):c(ncol(test_df))] <- scale(test_df[, c(2):c(ncol(test_df))], center=TRUE, scale=TRUE)
 
@@ -84,8 +87,8 @@ test_df[, c(2):c(ncol(test_df))] <- scale(test_df[, c(2):c(ncol(test_df))], cent
 ## Perform PCA
 
 ```{r}
-
-prin_comp = princomp(~ ., train_df[2:ncol(df_standard)], cor = TRUE)
+set.seed(123)
+prin_comp = princomp(~ ., train_df[2:ncol(train_df)], cor = TRUE)
 summary(prin_comp)
 screeplot(prin_comp,  npcs = 10, type = c("lines"), main="Scree Plot")
 
@@ -93,9 +96,10 @@ screeplot(prin_comp,  npcs = 10, type = c("lines"), main="Scree Plot")
 
 Plot to find features corresponding to 95% of variance
 ```{r}
+set.seed(123)
 pve = prin_comp$sdev^2/sum(prin_comp$sdev^2)
 cum_pve = cumsum(prin_comp$sdev^2)/sum(prin_comp$sdev^2)
-comps = 1:72
+comps = 1:108
 pve_df = data.frame(comps, pve)
 cum_pve_df = data.frame(comps, cum_pve)
 
@@ -106,18 +110,19 @@ cat("Number of principal components needed to describe at least 95% of variance:
 ```
 
 ```{r}
-
+set.seed(123)
 prin_comp$loadings
 
 ```
 
 BiPlot
-```{r, fig.width=4, fig.height=4}
+```{r, fig.width=14, fig.height=14}
+set.seed(123)
 autoplot(prin_comp, data = train_df, colour = 'Target', loadings = TRUE, loadings.colour = "blue", loadings.label = TRUE)+labs(x="Principal Component 1", y="Principal Component 2", title= "PCA Biplot")
 ```
 
 ```{r}
-
+set.seed(123)
 varPCA <- function(prin_comp, x){
   names(prin_comp$loadings[,x][order(abs(prin_comp$loadings[,x]),decreasing=TRUE)][x])
 }
@@ -130,7 +135,7 @@ for(i in 1:20){
 
 Prepare training df of PCs
 ```{r}
-
+set.seed(123)
 pca_df <- data.frame(train_df$Target)
 
 for(i in 1:20){
@@ -146,7 +151,7 @@ train_df
 ```
 
 ```{r}
-
+set.seed(123)
 trainResults <- function(model, architecture){
   for_lift <- data.frame(Class = model$pred$obs, rf = model$pred$R, resample = model$pred$Resample)
   lift_df <-  data.frame()
@@ -174,6 +179,7 @@ errorRate <- function(model, test){
 ## Build LR Here
 
 ```{r}
+set.seed(123)
 train_x <- model.matrix(Target~., train_df)
 train_y <- train_df$Target
 Target <- test_df$Target
@@ -185,18 +191,19 @@ model_rr <- cv.glmnet(train_x, train_y, alpha=0, lambda=10^seq(-5,5, length=200)
 plot(model_rr)
 ```
 ```{r}
+set.seed(123)
 model_rr$lambda.min
 ```
 
 
 ```{r}
-
+set.seed(123)
 coef(model_rr, s = model_rr$lambda.min)
 
 ```
 
 ```{r}
-
+set.seed(123)
 train_perf_rr <- predict(model_rr, s = model_rr$lambda.min, 
                          newx = train_x, type = "response")
 ROC_train_rr <- rocit(score=as.vector(train_perf_rr), class=train_y)
@@ -210,7 +217,7 @@ confusionMatrix(table(rr_train_binary, train_df$Target), positive="1")
 
 
 ```{r}
-
+set.seed(123)
 test_perf_rr <- predict(model_rr, s = model_rr$lambda.min, 
                          newx = test_x, type = "response")
 ROC_test_rr <- rocit(score=as.vector(test_perf_rr), class=test_y)
@@ -222,7 +229,7 @@ confusionMatrix(table(rr_test_binary, test_df$Target), positive="1")
 ```
 
 ```{r}
-
+set.seed(123)
 rr_train_error <- errorRate(rr_train_binary, train_y)
 cat("\nTrain accuracy:   ", 1-rr_train_error,
     "\nTrain error rate: ", rr_train_error,
@@ -238,8 +245,9 @@ cat("\nTest accuracy:    ", 1-rr_test_error,
 ## Build SVM
 
 ```{r}
-
+set.seed(123)
 model_svm <- tune.svm(Target~., data = train_df, 
+                      type = 'C-classification',
                       cost = 10^seq(-3,3, length=10), 
                       kernel = "linear",tunecontrol=tune.control(cross=10),
                       probability=TRUE)
@@ -249,7 +257,7 @@ plot(model_svm)
 ```
 
 ```{r}
-
+set.seed(123)
 model_svm$performances
 train_perf_svm <- predict(model_svm$best.model, train_df[,2:ncol(train_df)], probability=TRUE)
 predictions_train_svm <- data.frame(attr(train_perf_svm, "probabilities"))[,2]
@@ -263,6 +271,7 @@ confusionMatrix(table(svm_train_binary, train_df$Target), positive="1")
 ```
 
 ```{r}
+set.seed(123)
 colnames(test_df) <- c("Target", "PC1", "PC2", "PC3", "PC4", "PC5", "PC6", "PC7", 
                       "PC8", "PC9", "PC10", "PC11", "PC12", "PC13", "PC14", "PC15",
                       "PC16", "PC17", "PC18", "PC19", "PC20")
@@ -278,7 +287,7 @@ confusionMatrix(table(svm_test_binary, test_df$Target), positive="1")
 ```
 
 ```{r}
-
+set.seed(123)
 svm_train_error <- errorRate(svm_train_binary, train_y)
 cat("\nTrain accuracy:   ", 1-svm_train_error,
     "\nTrain error rate: ", svm_train_error,
@@ -294,7 +303,7 @@ cat("\nTest accuracy:    ", 1-svm_test_error,
 ## Build Random Forest
 
 ```{r}
-
+set.seed(123)
 model_rf <- tune.randomForest(Target~., data = train_df, 
                       mtry = sqrt(ncol(train_df)-1),
                       tunecontrol=tune.control(cross=10),
@@ -305,7 +314,7 @@ summary(model_rf)
 ```
 
 ```{r}
-
+set.seed(123)
 model_rf$performances
 plot(model_rf$performances[,2],model_rf$performances[,3],xlab="ntree", ylab="Error", log="x")
 model_rf$best.model
@@ -313,7 +322,7 @@ model_rf$best.model
 ```
 
 ```{r}
-
+set.seed(123)
 model_rf$performances
 train_perf_rf <- predict(model_rf$best.model, train_df[,2:ncol(train_df)], type="prob")
 predictions_train_rf <- data.frame(train_perf_rf)[,2]
@@ -327,7 +336,7 @@ confusionMatrix(table(rf_train_binary, train_df$Target), positive="1")
 ```
 
 ```{r}
-
+set.seed(123)
 test_perf_rf <- predict(model_rf$best.model, test_df[,2:ncol(test_df)], type="prob")
 predictions_test_rf <- data.frame(test_perf_rf)[,2]
 ROC_test_rf <- rocit(score=as.vector(predictions_test_rf), class=test_y)
@@ -339,7 +348,7 @@ confusionMatrix(table(rf_test_binary, test_df$Target), positive="1")
 ```
 
 ```{r}
-
+set.seed(123)
 rf_train_error <- errorRate(rf_train_binary, train_y)
 cat("\nTrain accuracy:   ", 1-rf_train_error,
     "\nTrain error rate: ", rf_train_error,
@@ -355,7 +364,7 @@ cat("\nTest accuracy:    ", 1-rf_test_error,
 ## Plot Combined ROC Curve
 
 ```{r}
-
+set.seed(123)
 par(pty="s")
 plot(ROC_test_rr$FPR, ROC_test_rr$TPR, type = "l", 
      xlab = "1-Specificity", ylab = "Sensitivity", col = "blue",
@@ -363,7 +372,7 @@ plot(ROC_test_rr$FPR, ROC_test_rr$TPR, type = "l",
 lines(ROC_test_rf$FPR, ROC_test_rf$TPR, type = "l", col = "red")
 lines(ROC_test_svm$FPR, ROC_test_svm$TPR, type = "l", col = "green")
 abline(coef = c(0,1))
-legend("bottomright",c("LR      0.620","RF      0.616", "SVM   0.559"), lty="solid", col=c("blue","red", "green"),cex=1,
+legend("bottomright",c("LR      0.6821","RF      0.6735", "SVM   0.6692"), lty="solid", col=c("blue","red", "green"),cex=1,
         title="Model           AUC")
 ```
 
