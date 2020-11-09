@@ -109,7 +109,7 @@ Test_df <- rbind(noFalls_test,Falls_test)
 Try using SWDFT
 
 ```{r}
-
+library(numDeriv)
 # https://cran.r-project.org/web/packages/swdft/vignettes/swdft-intro.html (useful)
 swdft_fft <- function(x, n, taper=1) {
   N <- length(x)
@@ -129,7 +129,10 @@ q3 <- function(x){
   quantile(x, 0.75,na.rm = TRUE)
 }
 
-
+max_diff<- function(x){
+  deriv<-diff(x)
+  max(abs(deriv))
+}
 entropy <- function(a,Fs=100){
   t <- seq(1/Fs, length(a)*1/Fs, 1/Fs)
   a<-a-mean(a)
@@ -248,17 +251,17 @@ return(df_out)}
 
 ```{r}
 df_in<-Test_df
-feats<-c('entropy','mean_energy','total_energy','roll_off','spec_centroid','min','max','q1','q3','sd','skewness','kurtosis','median')
+feats<-c('entropy','mean_energy','total_energy','roll_off','spec_centroid','min','max','q1','q3','sd','skewness','kurtosis','median','max_diff')
 ```
 
 ```{r}
 Fs <- 100
 win <- 1
-stp <- 0.2
+stp <- 0.3
 window <-win*Fs
 step <- stp*Fs
 # Test_df$Target<-as.logical(Test_df$Target)
-feats<-c('entropy','mean_energy','total_energy','roll_off','spec_centroid','min','max','q1','q3','sd','skewness','kurtosis','median')
+feats<-c('entropy','mean_energy','total_energy','roll_off','spec_centroid','min','max','q1','q3','sd','skewness','kurtosis','median','max_diff')
 Test_feat_df<-feature_gen(Test_df,feats,window = window,step =step)
 # Train_feat_df<-feature_gen(Train_df,feats,win = 200,stp=40)
 ```
@@ -308,6 +311,21 @@ Test_feat_df<-feature_gen(Test_df,feats,win = 200,stp=50)
 
 
 ```{r}
+library(ggplot2)
+yhat<-as.logical(Test_df$Target)
+num<-which(yhat)
+inds<-seq(from=num[1]-100,to=num[1]+99,by=1)
+Y<-Test_df$Acc[inds]
+X<-seq(1/100,200/100,1/100)
+feat<-data.frame(cbind(X,Y))
+p1<-ggplot(data=feat, aes(x = X, y=Y, group=1)) +
+  geom_line(linetype = "solid") + labs(title = "RMS Acceleration") + annotate("rect", xmin = 30/100 , xmax = 130/100, ymin = min(Y)-1 , ymax = max(Y)+1,
+  alpha = .2,color = 'red')+ annotate("rect", xmin = 60/100 , xmax = 160/100, ymin = min(Y)-1 , ymax = max(Y)+1,
+  alpha = .2,color = 'blue')+annotate("point",x=X[100],y=Y[100],colour = "red", size = 3) +  annotate(geom = "text", x = X[100]+2/100, y = Y[100], label = "Fall", hjust = "left")+
+  annotate(geom = "text", x = 30/100, y = max(Y)+1.5, label = "Sliding Window (n)", hjust = "left") + annotate(geom = "text", x = 80/100, y = max(Y)+1.5, label = "Sliding Window (n+1)", hjust = "left")+
+  labs(x = 'Time (s)', y = 'RMS Acceleration',title='Sliding Window Around Fall Incident')
+
+p1
 ```
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
