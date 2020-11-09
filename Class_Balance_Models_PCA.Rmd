@@ -84,6 +84,71 @@ test_df[, c(2):c(ncol(test_df))] <- scale(test_df[, c(2):c(ncol(test_df))], cent
 
 ```
 
+## Perform PCA
+
+```{r}
+set.seed(123)
+prin_comp = princomp(~ ., train_df[2:ncol(train_df)], cor = TRUE)
+summary(prin_comp)
+screeplot(prin_comp,  npcs = 10, type = c("lines"), main="Scree Plot")
+
+```
+
+Plot to find features corresponding to 95% of variance
+```{r}
+set.seed(123)
+pve = prin_comp$sdev^2/sum(prin_comp$sdev^2)
+cum_pve = cumsum(prin_comp$sdev^2)/sum(prin_comp$sdev^2)
+comps = 1:108
+pve_df = data.frame(comps, pve)
+cum_pve_df = data.frame(comps, cum_pve)
+
+ggplot(cum_pve_df, aes(x=comps, y = cum_pve))+geom_line()+geom_point()+labs(x="Principal Component", y = "Cumulative Proportion of Variance Explained", title = "Cumulative Proportion of Variance Explained Over Number of Principal Components")+geom_hline(yintercept = 0.90, color = "red")+geom_text(aes(0, 0.90, label = 0.90, vjust = 1))
+
+cat("Number of principal components needed to describe at least 95% of variance:", min(which(cum_pve > 0.90)))
+
+```
+
+```{r}
+set.seed(123)
+prin_comp$loadings
+
+```
+
+BiPlot
+```{r, fig.width=14, fig.height=14}
+set.seed(123)
+autoplot(prin_comp, data = train_df, colour = 'Target', loadings = TRUE, loadings.colour = "blue", loadings.label = TRUE)+labs(x="Principal Component 1", y="Principal Component 2", title= "PCA Biplot")
+```
+
+```{r}
+set.seed(123)
+varPCA <- function(prin_comp, x){
+  names(prin_comp$loadings[,x][order(abs(prin_comp$loadings[,x]),decreasing=TRUE)][x])
+}
+
+for(i in 1:20){
+  cat("\nVariable corresponding to PC", i, ":  ", varPCA(prin_comp, i))
+}
+
+```
+
+Prepare training df of PCs
+```{r}
+set.seed(123)
+pca_df <- data.frame(train_df$Target)
+
+for(i in 1:20){
+  pca_df <- cbind(pca_df, prin_comp$scores[,i])
+}
+colnames(pca_df) <- c("Target", "PC1", "PC2", "PC3", "PC4", "PC5", "PC6", "PC7", 
+                      "PC8", "PC9", "PC10", "PC11", "PC12", "PC13", "PC14", "PC15",
+                      "PC16", "PC17", "PC18", "PC19", "PC20")
+
+train_df <- pca_df
+train_df
+
+```
 
 ```{r}
 set.seed(123)
@@ -117,12 +182,13 @@ errorRate <- function(model, test){
 set.seed(123)
 train_x <- model.matrix(Target~., train_df)
 train_y <- train_df$Target
+Target <- test_df$Target
+test_df <- data.frame(Target, as_tibble(predict(prin_comp, newdata = test_df[,2:ncol(test_df)]))[,1:20])
 test_x <- model.matrix(Target~., test_df)
 test_y <- test_df$Target
 model_rr <- cv.glmnet(train_x, train_y, alpha=0, lambda=10^seq(-5,5, length=200), 
                          type.measure="class", nfolds=10, family="binomial")
 plot(model_rr)
-
 ```
 ```{r}
 set.seed(123)
@@ -182,7 +248,7 @@ cat("\nTest accuracy:    ", 1-rr_test_error,
 set.seed(123)
 model_svm <- tune.svm(Target~., data = train_df, 
                       type = 'C-classification',
-                      cost = 10^seq(-3,3, length=10),
+                      cost = 10^seq(-3,3, length=10), 
                       kernel = "linear",tunecontrol=tune.control(cross=10),
                       probability=TRUE)
 summary(model_svm)
@@ -206,6 +272,9 @@ confusionMatrix(table(svm_train_binary, train_df$Target), positive="1")
 
 ```{r}
 set.seed(123)
+colnames(test_df) <- c("Target", "PC1", "PC2", "PC3", "PC4", "PC5", "PC6", "PC7", 
+                      "PC8", "PC9", "PC10", "PC11", "PC12", "PC13", "PC14", "PC15",
+                      "PC16", "PC17", "PC18", "PC19", "PC20")
 test_perf_svm <- predict(model_svm$best.model, test_df[,2:ncol(test_df)], probability=TRUE)
 predictions_test_svm <- data.frame(attr(test_perf_svm, "probabilities"))[,2]
 ROC_test_svm <- rocit(score=as.vector(predictions_test_svm), class=test_y)
@@ -299,11 +368,11 @@ set.seed(123)
 par(pty="s")
 plot(ROC_test_rr$FPR, ROC_test_rr$TPR, type = "l", 
      xlab = "1-Specificity", ylab = "Sensitivity", col = "blue",
-     main = "Naive Approach - ROC Curves")
+     main = "PCA Approach - ROC Curves")
 lines(ROC_test_rf$FPR, ROC_test_rf$TPR, type = "l", col = "red")
 lines(ROC_test_svm$FPR, ROC_test_svm$TPR, type = "l", col = "green")
 abline(coef = c(0,1))
-legend("bottomright",c("LR      0.6981","RF      0.7489", "SVM   0.7561"), lty="solid", col=c("blue","red", "green"),cex=1,
+legend("bottomright",c("LR      0.6821","RF      0.6735", "SVM   0.6692"), lty="solid", col=c("blue","red", "green"),cex=1,
         title="Model           AUC")
 ```
 
