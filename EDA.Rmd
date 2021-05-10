@@ -68,21 +68,21 @@ magZ <- signal::filtfilt(bf, Falls_df_rms$magZ)
 Target <- Falls_df$Target
 
 Falls_df <- data.frame(Time, accX, accY, accZ, angX, angY, angZ, maxX, magY, magZ, Target)
-Falls_df_rms <- data.frame(Time, accX, accY, accZ, angX, angY, angZ, maxX, magY, magZ, Target)
+# Falls_df_rms <- data.frame(Time, accX, accY, accZ, angX, angY, angZ, maxX, magY, magZ, Target)
 
 ```
 
 Make a new dataset of RMS values
 
 ```{r}
-
-Falls_df_rms <- dplyr::mutate(Falls_df_rms, acc = (Falls_df_rms$accX^2 + Falls_df_rms$accY^2 + Falls_df_rms$accZ^2)^0.5)
-Falls_df_rms <- dplyr::mutate(Falls_df_rms, ang = (Falls_df_rms$angX^2 + Falls_df_rms$angY^2 + Falls_df_rms$angZ^2)^0.5)
-Falls_df_rms <- dplyr::mutate(Falls_df_rms, mag = (Falls_df_rms$maxX^2 + Falls_df_rms$magY^2 + Falls_df_rms$magZ^2)^0.5)
-
-Falls_df_rms <- dplyr::select(Falls_df_rms, Time, acc, ang, mag, Target)
-
-str(Falls_df_rms)
+# 
+# Falls_df_rms <- dplyr::mutate(Falls_df_rms, acc = (Falls_df_rms$accX^2 + Falls_df_rms$accY^2 + Falls_df_rms$accZ^2)^0.5)
+# Falls_df_rms <- dplyr::mutate(Falls_df_rms, ang = (Falls_df_rms$angX^2 + Falls_df_rms$angY^2 + Falls_df_rms$angZ^2)^0.5)
+# Falls_df_rms <- dplyr::mutate(Falls_df_rms, mag = (Falls_df_rms$maxX^2 + Falls_df_rms$magY^2 + Falls_df_rms$magZ^2)^0.5)
+# 
+# Falls_df_rms <- dplyr::select(Falls_df_rms, Time, acc, ang, mag, Target)
+# 
+# str(Falls_df_rms)
 
 ```
 
@@ -103,7 +103,7 @@ Falls_df[, "Target"] <- sapply(Falls_df_rms[, "Target"], as.factor)
 ```
 
 
-```{r, fig.width=8, fig.height=8}
+```{r, fig.width=15, fig.height=6}
 library(ggplot2)
 
 cols <- c("#2E9FDF", "#FF6666")
@@ -114,7 +114,7 @@ accX <- ggplot(Falls_df, aes(x=accX, color=Target)) +
   geom_vline(aes(xintercept = mean(Falls_raw_none$accX)),col='#2E9FDF', linetype="dashed") +
   geom_vline(aes(xintercept = mean(Falls_raw_target$accX)),col='#FF6666', linetype="dashed") +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-  panel.background = element_blank(), axis.line = element_line(colour = "black")) + ylim(0,1)
+  panel.background = element_blank(), axis.line = element_line(colour = "black")) + ylim(0,1)+ theme(text=element_text(size=17))
 
 accY <- ggplot(Falls_df, aes(x=accY, color=Target)) +
   geom_histogram(aes(y=..density..), bins=50) + xlab("Acceleration (m/s^2)") + 
@@ -122,7 +122,7 @@ accY <- ggplot(Falls_df, aes(x=accY, color=Target)) +
   geom_vline(aes(xintercept = mean(Falls_raw_none$accY)),col='#2E9FDF', linetype="dashed") +
   geom_vline(aes(xintercept = mean(Falls_raw_target$accY)),col='#FF6666', linetype="dashed") +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-  panel.background = element_blank(), axis.line = element_line(colour = "black")) + ylim(0,1)
+  panel.background = element_blank(), axis.line = element_line(colour = "black")) + ylim(0,1)+theme(text=element_text(size=17))
 
 accZ <- ggplot(Falls_df, aes(x=accZ, color=Target)) +
   geom_histogram(aes(y=..density..), bins=50) + xlab("Acceleration (m/s^2)") + 
@@ -130,7 +130,7 @@ accZ <- ggplot(Falls_df, aes(x=accZ, color=Target)) +
   geom_vline(aes(xintercept = mean(Falls_raw_none$accZ)),col='#2E9FDF', linetype="dashed") +
   geom_vline(aes(xintercept = mean(Falls_raw_target$accZ)),col='#FF6666', linetype="dashed") +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-  panel.background = element_blank(), axis.line = element_line(colour = "black")) + ylim(0,1)
+  panel.background = element_blank(), axis.line = element_line(colour = "black")) + ylim(0,1)+theme(text=element_text(size=17))
 
 angX <- ggplot(Falls_df, aes(x=angX, color=Target)) +
   geom_histogram(aes(y=..density..), bins=50) + xlab("Angular Rotation (Rad/s)") + 
@@ -138,7 +138,7 @@ angX <- ggplot(Falls_df, aes(x=angX, color=Target)) +
   geom_vline(aes(xintercept = mean(Falls_raw_none$angX)),col='#2E9FDF', linetype="dashed") +
   geom_vline(aes(xintercept = mean(Falls_raw_target$angX)),col='#FF6666', linetype="dashed") +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-  panel.background = element_blank(), axis.line = element_line(colour = "black")) + ylim(0,2.5)
+  panel.background = element_blank(), axis.line = element_line(colour = "black")) + ylim(0,2.5)+ theme(text=element_text(size=17))
 
 angY <- ggplot(Falls_df, aes(x=angY, color=Target)) +
   geom_histogram(aes(y=..density..), bins=50) + xlab("Angular Rotation (Rad/s)") + 
@@ -146,7 +146,7 @@ angY <- ggplot(Falls_df, aes(x=angY, color=Target)) +
   geom_vline(aes(xintercept = mean(Falls_raw_none$angY)),col='#2E9FDF', linetype="dashed") +
   geom_vline(aes(xintercept = mean(Falls_raw_target$angY)),col='#FF6666', linetype="dashed") +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-  panel.background = element_blank(), axis.line = element_line(colour = "black")) + ylim(0,2.5)
+  panel.background = element_blank(), axis.line = element_line(colour = "black")) + ylim(0,2.5)+ theme(text=element_text(size=17))
 
 angZ <- ggplot(Falls_df, aes(x=accZ, color=Target)) +
   geom_histogram(aes(y=..density..), bins=50) + xlab("Angular Rotation (Rad/s)") + 
@@ -154,7 +154,7 @@ angZ <- ggplot(Falls_df, aes(x=accZ, color=Target)) +
   geom_vline(aes(xintercept = mean(Falls_raw_none$accZ)),col='#2E9FDF', linetype="dashed") +
   geom_vline(aes(xintercept = mean(Falls_raw_target$accZ)),col='#FF6666', linetype="dashed") +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-  panel.background = element_blank(), axis.line = element_line(colour = "black")) + ylim(0,2.5)
+  panel.background = element_blank(), axis.line = element_line(colour = "black")) + ylim(0,2.5)+ theme(text=element_text(size=17))
 
 magX <- ggplot(Falls_df, aes(x=maxX, color=Target)) +
   geom_histogram(aes(y=..density..), bins=50) + xlab("Magnetic Flux Density (uT)") + 
@@ -162,7 +162,7 @@ magX <- ggplot(Falls_df, aes(x=maxX, color=Target)) +
   geom_vline(aes(xintercept = mean(Falls_raw_none$maxX)),col='#2E9FDF', linetype="dashed") +
   geom_vline(aes(xintercept = mean(Falls_raw_target$maxX)),col='#FF6666', linetype="dashed") +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-  panel.background = element_blank(), axis.line = element_line(colour = "black")) + ylim(0,6.5)
+  panel.background = element_blank(), axis.line = element_line(colour = "black")) + ylim(0,6.5)+ theme(text=element_text(size=17))
 
 magY <- ggplot(Falls_df, aes(x=magY, color=Target)) +
   geom_histogram(aes(y=..density..), bins=50) + xlab("Magnetic Flux Density (uT)") + 
@@ -170,7 +170,7 @@ magY <- ggplot(Falls_df, aes(x=magY, color=Target)) +
   geom_vline(aes(xintercept = mean(Falls_raw_none$magY)),col='#2E9FDF', linetype="dashed") +
   geom_vline(aes(xintercept = mean(Falls_raw_target$magY)),col='#FF6666', linetype="dashed") +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-  panel.background = element_blank(), axis.line = element_line(colour = "black")) + ylim(0,6.5)
+  panel.background = element_blank(), axis.line = element_line(colour = "black")) + ylim(0,6.5)+ theme(text=element_text(size=17))
 
 magZ <- ggplot(Falls_df, aes(x=magZ, color=Target)) +
   geom_histogram(aes(y=..density..), bins=50) + xlab("Magnetic Flux Density (uT)") + 
@@ -178,7 +178,7 @@ magZ <- ggplot(Falls_df, aes(x=magZ, color=Target)) +
   geom_vline(aes(xintercept = mean(Falls_raw_none$magZ)),col='#2E9FDF', linetype="dashed") +
   geom_vline(aes(xintercept = mean(Falls_raw_target$magZ)),col='#FF6666', linetype="dashed") +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-  panel.background = element_blank(), axis.line = element_line(colour = "black")) + ylim(0,6.5)
+  panel.background = element_blank(), axis.line = element_line(colour = "black")) + ylim(0,6.5)+ theme(text=element_text(size=17))
 
 a <- ggplot(Falls_df_rms, aes(x=acc, color=Target)) +
   geom_histogram(aes(y=..density..), bins=50) + xlab("Acceleration (m/s^2)") + 
@@ -204,7 +204,27 @@ c <- ggplot(Falls_df_rms, aes(x=mag, color=Target)) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
   panel.background = element_blank(), axis.line = element_line(colour = "black")) + ylim(0,6.5)
 
+(accX+accY+accZ)/
+(angX+angY+angZ)/
+(magX+magY+magZ)
 ```
+```{r}
+x<-Falls_df$accY
+del<-1/100 # sampling interval
+x.spec <- spectrum(x,log="no",span=500,plot=FALSE)
+spx <- x.spec$freq/del
+spy <- 2*x.spec$spec
+plot(spy~spx,xlab="frequency",ylab="spectral density",type="l")
+```
+```{r}
+x<-Falls_df_rms$accY
+del<-1/100 # sampling interval
+x.spec <- spectrum(x,log="no",span=500,plot=FALSE)
+spx <- x.spec$freq/del
+spy <- 2*x.spec$spec
+plot(spy~spx,xlab="frequency",ylab="spectral density",type="l")
+```
+
 
 ```{r}
 

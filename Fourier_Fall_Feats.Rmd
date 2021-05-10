@@ -74,7 +74,7 @@ Target <- Data$Target
 Acc<-sqrt(accX^2+ accY^2+ accZ^2)
 Ang<-sqrt(angX^2+ angY^2+ angZ^2)
 MagF<-sqrt(magX^2+ magY^2+ magZ^2)
-Data<-data.frame(Target,Acc,Ang,MagF)
+Data<-data.frame(Target,accX,accY,accZ,angX,angY,angZ,magX,magY,magZ)
 ```
 
 TEST BUTTERWORTH
@@ -85,25 +85,25 @@ rm(accX); rm(accY);rm(accZ); rm(angX); rm(angY);rm(angZ); rm(magX); rm(magY);rm(
 Define SWDFT
 
 ```{r}
-Falls_df <- subset(Data, Target==1)
-noFalls_df<- subset(Data, Target==0)
-set.seed(97)
-## 80% of the sample size
-smp_size <- floor(0.80 * nrow(Falls_df))
-falls_train_ind <- sample(seq_len(nrow(Falls_df)), size = smp_size)
-
-Falls_train <- Falls_df[falls_train_ind, ]
-Falls_test <- Falls_df[-falls_train_ind, ]
-
-
-smp_size <- floor(0.80 * nrow(noFalls_df))
-nofalls_train_ind <- sample(seq_len(nrow(noFalls_df)), size = smp_size)
-
-noFalls_train <- noFalls_df[nofalls_train_ind, ]
-noFalls_test <- noFalls_df[-nofalls_train_ind, ]
-
-Train_df <- rbind(noFalls_train,Falls_train)
-Test_df <- rbind(noFalls_test,Falls_test)
+# Falls_df <- subset(Data, Target==1)
+# noFalls_df<- subset(Data, Target==0)
+# set.seed(97)
+# ## 80% of the sample size
+# smp_size <- floor(0.80 * nrow(Falls_df))
+# falls_train_ind <- sample(seq_len(nrow(Falls_df)), size = smp_size)
+# 
+# Falls_train <- Falls_df[falls_train_ind, ]
+# Falls_test <- Falls_df[-falls_train_ind, ]
+# 
+# 
+# smp_size <- floor(0.80 * nrow(noFalls_df))
+# nofalls_train_ind <- sample(seq_len(nrow(noFalls_df)), size = smp_size)
+# 
+# noFalls_train <- noFalls_df[nofalls_train_ind, ]
+# noFalls_test <- noFalls_df[-nofalls_train_ind, ]
+# 
+# Train_df <- rbind(noFalls_train,Falls_train)
+# Test_df <- rbind(noFalls_test,Falls_test)
 ```
 
 Try using SWDFT
@@ -177,43 +177,43 @@ total_energy <- function(a,Fs=100){
   sum(Mod(fft(aa))^2)
 }
 
-roll_off <- function(a,Fs=100){
-  t <- seq(1/Fs, length(a)*1/Fs, 1/Fs)
-  a<-a-mean(a)
-  n = length(a)
-  dt = 1/Fs
-  fNyq = 1/(2*dt)
-  tmax = max(t)
-  df = 1/tmax
-  f = seq(-fNyq, fNyq-df, by=df)
-  mask=rep(c(1, -1),length.out=n)
-  aa = a * mask
-  amp<-Mod(fft(aa))/n
-  freq<-f[f>0]
-  amp<-amp[f>0]
-  cums<-cumsum(amp)
-  roll<-cums<0.85*max(cums)
-  rolloff<-tail(freq[roll],1)
-  return(rolloff)}
-
-spec_centroid <- function(a,Fs=100){
-  t <- seq(1/Fs, length(a)*1/Fs, 1/Fs)
-  a<-a-mean(a)
-  n = length(a)
-  dt = 1/Fs
-  fNyq = 1/(2*dt)
-  tmax = max(t)
-  df = 1/tmax
-  f = seq(-fNyq, fNyq-df, by=df)
-  mask=rep(c(1, -1),length.out=n)
-  aa = a * mask
-  amp<-Mod(fft(aa))/n
-  freq<-f[f>0]
-  amp<-amp[f>0]
-  cums<-cumsum(amp)
-  roll<-cums<0.85*max(cums)
-  cent<-tail(freq[roll],1)
-  return(cent)}
+# roll_off <- function(a,Fs=100){
+#   t <- seq(1/Fs, length(a)*1/Fs, 1/Fs)
+#   a<-a-mean(a)
+#   n = length(a)
+#   dt = 1/Fs
+#   fNyq = 1/(2*dt)
+#   tmax = max(t)
+#   df = 1/tmax
+#   f = seq(-fNyq, fNyq-df, by=df)
+#   mask=rep(c(1, -1),length.out=n)
+#   aa = a * mask
+#   amp<-Mod(fft(aa))/n
+#   freq<-f[f>0]
+#   amp<-amp[f>0]
+#   cums<-cumsum(amp)
+#   roll<-cums<0.85*max(cums)
+#   rolloff<-tail(freq[roll],1)
+#   return(rolloff)}
+# 
+# spec_centroid <- function(a,Fs=100){
+#   t <- seq(1/Fs, length(a)*1/Fs, 1/Fs)
+#   a<-a-mean(a)
+#   n = length(a)
+#   dt = 1/Fs
+#   fNyq = 1/(2*dt)
+#   tmax = max(t)
+#   df = 1/tmax
+#   f = seq(-fNyq, fNyq-df, by=df)
+#   mask=rep(c(1, -1),length.out=n)
+#   aa = a * mask
+#   amp<-Mod(fft(aa))/n
+#   freq<-f[f>0]
+#   amp<-amp[f>0]
+#   cums<-cumsum(amp)
+#   roll<-cums<0.5*max(cums)
+#   cent<-tail(freq[roll],1)
+#   return(cent)}
 
 
 ```
@@ -250,39 +250,58 @@ return(df_out)}
 ```
 
 ```{r}
-df_in<-Test_df
-feats<-c('entropy','mean_energy','total_energy','roll_off','spec_centroid','min','max','q1','q3','sd','skewness','kurtosis','median','max_diff')
 ```
 
 ```{r}
 Fs <- 100
 win <- 1
-stp <- 0.3
+stp <- 0.5
 window <-win*Fs
 step <- stp*Fs
 # Test_df$Target<-as.logical(Test_df$Target)
-feats<-c('entropy','mean_energy','total_energy','roll_off','spec_centroid','min','max','q1','q3','sd','skewness','kurtosis','median','max_diff')
-Test_feat_df<-feature_gen(Test_df,feats,window = window,step =step)
-# Train_feat_df<-feature_gen(Train_df,feats,win = 200,stp=40)
+feats<-c('entropy','mean_energy','total_energy','min','max','q1','q3','sd','skewness','kurtosis','median','max_diff','rms')
+Feat_df<-feature_gen(Data,feats,window = window,step =step)
+
 ```
 ```{r}
-Train_feat_df<-feature_gen(Train_df,feats,window = window,step =step)
+# Train_feat_df<-feature_gen(Train_df,feats,window = window,step =step)
 ```
-
-
 
 
 ```{r}
-trainRows <- sample(nrow(Train_feat_df))
-testRows <- sample(nrow(Test_feat_df))
-Train_feat_df<-Train_feat_df[trainRows,]
-Test_feat_df<-Test_feat_df[testRows,]
+Falls_df <- subset(Feat_df, Target==1)          
+noFalls_df<- subset(Feat_df, Target==0)
+set.seed(97)
+## 80% of the sample size
+smp_size <- floor(0.80 * nrow(Falls_df))
+falls_train_ind <- sample(seq_len(nrow(Falls_df)), size = smp_size)
+
+Falls_train <- Falls_df[falls_train_ind, ]
+Falls_test <- Falls_df[-falls_train_ind, ]
+
+
+smp_size <- floor(0.80 * nrow(noFalls_df))
+nofalls_train_ind <- sample(seq_len(nrow(noFalls_df)), size = smp_size)
+
+noFalls_train <- noFalls_df[nofalls_train_ind, ]
+noFalls_test <- noFalls_df[-nofalls_train_ind, ]
+
+Train_df <- rbind(noFalls_train,Falls_train)
+Test_df <- rbind(noFalls_test,Falls_test)
+```
+
+
+```{r}
+trainRows <- sample(nrow(Train_df))
+testRows <- sample(nrow(Test_df))
+Train_feat_df<-Train_df[trainRows,]
+Test_feat_df<-Test_df[testRows,]
 ```
 
 ```{r}
 setwd("~/Desktop/Duke/Class/Fall 2020/Biomedical DS/BME590_Fall_Detection/")
-write.csv(Train_feat_df,'Train_RMS_df.csv')
-write.csv(Test_feat_df,'Test_RMS_df.csv')
+write.csv(Train_feat_df,'Train_df_V2.csv')
+write.csv(Test_feat_df,'Test_df_V2.csv')
 
 ```
 

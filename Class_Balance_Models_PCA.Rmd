@@ -46,8 +46,8 @@ set all targets to factor | Index all other columns for scaling
 
 ```{r pressure, echo=FALSE}
 set.seed(123)
-train_df <- read_csv("Train_feat_df.csv") # this is actually overall dataframe
-test_df <- read_csv("Test_feat_df.csv") # this is actually overall dataframe
+train_df <- read_csv("Train_df_V2.csv") # this is actually overall dataframe
+test_df <- read_csv("Test_df_V2.csv") # this is actually overall dataframe
 nFallsTrain<-sum(train_df$targets)
 nFallsTest<-sum(test_df$targets)
 train_df$Target<-as.factor(train_df$Target)
@@ -55,6 +55,9 @@ test_df$Target<-as.factor(test_df$Target)
 nums<-unlist(lapply(train_df, is.numeric))
 cat('\nThe training DF is', as.character(dim(train_df)[1]),'instances long\n')
 cat('The training DF is', as.character(dim(test_df)[1]),'instances long')
+
+train_df<-subset(train_df,select = -c(X1))
+test_df<-subset(test_df,select = -c(X1))
 ```
 ```{r}
 set.seed(123)
